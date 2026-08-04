@@ -28,7 +28,11 @@ export default function LoginPage() {
       setAuth(user, accessToken);
       setTheme(user.theme);
       toast.success(`Welcome back, ${user.displayName}!`);
-      navigate('/dashboard');
+      if (user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/dashboard');
+      }
     },
     onError: (error) => {
       const message = isAxiosError(error)

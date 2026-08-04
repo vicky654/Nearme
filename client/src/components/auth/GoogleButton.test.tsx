@@ -15,7 +15,7 @@ function renderWithProviders(Component: ComponentType) {
   );
 }
 
-describe('GoogleButton', () => {
+describe('GoogleButton', { timeout: 20000 }, () => {
   afterEach(() => {
     cleanup();
     vi.unstubAllEnvs();

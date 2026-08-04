@@ -20,6 +20,7 @@ const fakeUser = {
   displayName: 'Alice',
   email: 'alice@example.com',
   emailVerifiedAt: '2026-01-01T00:00:00.000Z',
+  avatarUrl: 'https://example.com/alice.png',
 } as unknown as User;
 
 const unverifiedUser = {
@@ -28,6 +29,7 @@ const unverifiedUser = {
   displayName: 'Bob',
   email: 'bob@example.com',
   emailVerifiedAt: null,
+  avatarUrl: 'https://example.com/bob.png',
 } as unknown as User;
 
 function renderLayout() {
@@ -53,17 +55,19 @@ describe('AppLayout', () => {
     cleanup();
   });
 
-  it('renders navigation, the signed-in user, and the page content', () => {
+  it('renders navigation, the signed-in user avatar, and the page content', () => {
     renderLayout();
-    expect(screen.getByText('Profile')).toBeInTheDocument();
-    expect(screen.getByText('Settings')).toBeInTheDocument();
-    expect(screen.getByText('Alice')).toBeInTheDocument();
+    expect(screen.getAllByText('Home')[0]).toBeInTheDocument();
+    expect(screen.getAllByText('Nearby')[0]).toBeInTheDocument();
     expect(screen.getByText('Page content')).toBeInTheDocument();
   });
 
-  it('logs out and clears the auth store', async () => {
+  it('logs out and clears the auth store via ProfileDropdown', async () => {
     renderLayout();
-    await userEvent.click(screen.getByRole('button', { name: 'Log out' }));
+    const avatarImg = screen.getAllByAltText('Alice')[0]!;
+    await userEvent.click(avatarImg);
+    const logoutBtn = await screen.findByText(/log out/i);
+    await userEvent.click(logoutBtn);
     expect(logoutUser).toHaveBeenCalled();
     expect(useAuthStore.getState().user).toBeNull();
   });

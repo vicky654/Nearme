@@ -12,6 +12,11 @@ export interface IPrivacySettings {
   privateAccount: boolean;
 }
 
+export interface ILocation {
+  type: 'Point';
+  coordinates: [number, number];
+}
+
 export interface IUser extends Document {
   username: string;
   displayName: string;
@@ -23,6 +28,7 @@ export interface IUser extends Document {
   age?: number;
   country?: string;
   city?: string;
+  location?: ILocation;
   interests: string[];
   languages: string[];
   lastSeenAt: Date;
@@ -58,6 +64,10 @@ const userSchema = new Schema<IUser>({
   age: { type: Number },
   country: { type: String },
   city: { type: String },
+  location: {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], default: [0, 0] },
+  },
   interests: { type: [String], default: [] },
   languages: { type: [String], default: [] },
   lastSeenAt: { type: Date, default: () => new Date() },
@@ -68,10 +78,9 @@ const userSchema = new Schema<IUser>({
   role: { type: String, enum: ['user', 'admin'], default: 'user' },
   status: { type: String, enum: ['active', 'suspended', 'banned'], default: 'active' },
   createdAt: { type: Date, default: () => new Date() },
-  // Set whenever resetPassword or changePassword succeeds. Used to invalidate any
-  // password-reset purpose token issued before this timestamp, making reset links
-  // single-use even though the token itself is a stateless JWT.
   passwordChangedAt: { type: Date, default: null },
 });
+
+userSchema.index({ location: '2dsphere' });
 
 export default (models.User as Model<IUser>) || model<IUser>('User', userSchema);

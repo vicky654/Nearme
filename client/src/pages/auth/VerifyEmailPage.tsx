@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { verifyEmail } from '../../api/authApi';
+import { toast } from '../../store/toastStore';
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
@@ -13,6 +15,12 @@ export default function VerifyEmailPage() {
     enabled: Boolean(token),
     retry: false,
   });
+
+  useEffect(() => {
+    if (query.isSuccess) {
+      toast.success('Email verified successfully!');
+    }
+  }, [query.isSuccess]);
 
   if (!token) {
     return <p className="text-sm text-red-600">This verification link is missing a token.</p>;

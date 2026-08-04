@@ -56,7 +56,7 @@ describe('ProfilePage', () => {
   it('loads and displays the current profile', async () => {
     vi.mocked(getMe).mockResolvedValue({ user: fakeUser });
     renderPage();
-    expect(await screen.findByDisplayValue('Alice')).toBeInTheDocument();
+    expect(await screen.findByText('Alice')).toBeInTheDocument();
   });
 
   it('submits updated fields', async () => {
@@ -64,6 +64,9 @@ describe('ProfilePage', () => {
     vi.mocked(updateMe).mockResolvedValue({ user: { ...fakeUser, displayName: 'Alice Updated' } });
 
     renderPage();
+    const editBtn = await screen.findByRole('button', { name: /edit profile/i });
+    await userEvent.click(editBtn);
+
     const displayNameInput = await screen.findByDisplayValue('Alice');
     await userEvent.clear(displayNameInput);
     await userEvent.type(displayNameInput, 'Alice Updated');

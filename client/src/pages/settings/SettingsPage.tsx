@@ -13,13 +13,17 @@ import { getSettings, updateSettings, changePassword, SettingsPayload } from '..
 import { changePasswordFormSchema, ChangePasswordFormValues } from '../../validators/userSchemas';
 import type { PrivacySettings } from '../../types/user';
 
-type SettingsTab = 'profile' | 'password' | 'privacy' | 'theme';
+import { useNotificationStore } from '../../store/notificationStore';
+import { requestBrowserNotificationPermission } from '../../utils/browserNotificationService';
+
+type SettingsTab = 'profile' | 'password' | 'privacy' | 'theme' | 'notifications';
 
 const TABS: { key: SettingsTab; label: string }[] = [
   { key: 'profile', label: 'Profile' },
   { key: 'password', label: 'Password' },
   { key: 'privacy', label: 'Privacy' },
   { key: 'theme', label: 'Theme' },
+  { key: 'notifications', label: 'Notifications' },
 ];
 
 export default function SettingsPage() {
@@ -49,6 +53,7 @@ export default function SettingsPage() {
       {activeTab === 'password' && <PasswordTab />}
       {activeTab === 'privacy' && <PrivacyTab />}
       {activeTab === 'theme' && <ThemeTab />}
+      {activeTab === 'notifications' && <NotificationsTab />}
     </div>
   );
 }
@@ -209,6 +214,51 @@ function ThemeTab() {
           {option}
         </button>
       ))}
+    </div>
+  );
+}
+
+function NotificationsTab() {
+  const soundEnabled = useNotificationStore((state) => state.soundEnabled);
+  const toggleSound = useNotificationStore((state) => state.toggleSound);
+
+  const [permission, setPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'denied'
+  );
+
+  async function handleEnableBrowserNotifs() {
+    const res = await requestBrowserNotificationPermission();
+    setPermission(res);
+    if (res === 'granted') {
+      toast.success('Desktop browser notifications enabled!');
+    } else {
+      toast.error('Browser notification permission was denied.');
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      <label className="flex items-center justify-between gap-4 text-sm">
+        <div>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">Play Notification Sounds</span>
+          <p className="text-xs text-gray-500">Play a pleasant sound for incoming messages and friend requests</p>
+        </div>
+        <input type="checkbox" checked={soundEnabled} onChange={toggleSound} />
+      </label>
+
+      <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 dark:border-gray-800 text-sm">
+        <div>
+          <span className="font-semibold text-gray-900 dark:text-gray-100">Desktop Browser Notifications</span>
+          <p className="text-xs text-gray-500">
+            Status: <span className="font-bold capitalize">{permission}</span>
+          </p>
+        </div>
+        {permission !== 'granted' && (
+          <Button size="sm" variant="secondary" onClick={handleEnableBrowserNotifs}>
+            Enable Desktop Alerts
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

@@ -4,6 +4,8 @@
 
 :root {
   color-scheme: light;
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
 }
 
 [data-theme='dark'] {
@@ -11,5 +13,14 @@
 }
 
 body {
-  @apply bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100;
+  @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+  -webkit-overflow-scrolling: touch;
+}
+
+.pb-safe {
+  padding-bottom: max(1.25rem, var(--sab));
+}
+
+.pt-safe {
+  padding-top: max(1rem, var(--sat));
 }

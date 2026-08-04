@@ -31,4 +31,20 @@ describe('Input', () => {
     render(<Input label="Email" id="email" />);
     expect(screen.getByLabelText('Email')).not.toHaveAttribute('aria-describedby');
   });
+
+  it('toggles password visibility when the show/hide button is clicked', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
+    render(<Input label="Password" id="password" type="password" />);
+    const input = screen.getByLabelText('Password');
+    expect(input).toHaveAttribute('type', 'password');
+
+    const toggleButton = screen.getByRole('button', { name: 'Show password' });
+    await user.click(toggleButton);
+    expect(input).toHaveAttribute('type', 'text');
+    expect(screen.getByRole('button', { name: 'Hide password' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Hide password' }));
+    expect(input).toHaveAttribute('type', 'password');
+  });
 });

@@ -8,6 +8,7 @@ export interface PrivacySettings {
 
 export interface User {
   id: string;
+  _id?: string;
   username: string;
   displayName: string;
   email: string;
@@ -23,6 +24,11 @@ export interface User {
   status: string;
   theme: 'light' | 'dark' | 'system';
   emailVerifiedAt: string | null;
+  lastSeenAt?: string | null;
   createdAt: string;
   privacy: PrivacySettings;
+}
+
+export function getUserId(user: { id?: string; _id?: string }): string {
+  return (user._id || user.id || '');
 }

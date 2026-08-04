@@ -1,9 +1,11 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL as string;
+const baseURL = (import.meta.env.VITE_API_BASE_URL as string) || '/api/v1';
 
 export const apiClient = axios.create({ baseURL, withCredentials: true });
+export const axiosClient = apiClient;
+export default apiClient;
 
 apiClient.interceptors.request.use((config) => {
   const token = useAuthStore.getState().accessToken;

@@ -10,37 +10,37 @@ const REQUIRED_VARS = [
   'CLIENT_URL',
 ];
 
+import { envSchema } from '../../src/config/env';
+
 describe('env config', () => {
-  const originalEnv = { ...process.env };
-
-  beforeEach(() => {
-    process.env = { ...originalEnv };
+  it('throws when a required variable is missing', () => {
+    const invalidEnv = {
+      MONGODB_URI: 'mongodb://localhost:27017/nearme-test',
+      // JWT_ACCESS_SECRET is missing
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      JWT_PURPOSE_SECRET: 'c'.repeat(32),
+      RESEND_API_KEY: 'test-key',
+      EMAIL_FROM: 'NearMe <no-reply@test.dev>',
+      CLIENT_URL: 'http://localhost:5173',
+    };
+    expect(() => envSchema.parse(invalidEnv)).toThrow();
   });
 
-  afterEach(() => {
-    process.env = { ...originalEnv };
-  });
+  it('loads successfully when all required variables are present', () => {
+    const validEnv = {
+      NODE_ENV: 'test',
+      PORT: '4000',
+      MONGODB_URI: 'mongodb://localhost:27017/nearme-test',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      JWT_PURPOSE_SECRET: 'c'.repeat(32),
+      RESEND_API_KEY: 'test-key',
+      EMAIL_FROM: 'NearMe <no-reply@test.dev>',
+      CLIENT_URL: 'http://localhost:5173',
+    };
 
-  it('throws when a required variable is missing', async () => {
-    vi.resetModules();
-    delete process.env.JWT_ACCESS_SECRET;
-    await expect(import('../../src/config/env')).rejects.toBeDefined();
-  });
-
-  it('loads successfully when all required variables are present', async () => {
-    vi.resetModules();
-    process.env.NODE_ENV = 'test';
-    process.env.PORT = '4000';
-    process.env.MONGODB_URI = 'mongodb://localhost:27017/nearme-test';
-    process.env.JWT_ACCESS_SECRET = 'a'.repeat(32);
-    process.env.JWT_REFRESH_SECRET = 'b'.repeat(32);
-    process.env.JWT_PURPOSE_SECRET = 'c'.repeat(32);
-    process.env.RESEND_API_KEY = 'test-key';
-    process.env.EMAIL_FROM = 'NearMe <no-reply@test.dev>';
-    process.env.CLIENT_URL = 'http://localhost:5173';
-
-    const { env } = await import('../../src/config/env');
-    expect(env.PORT).toBe(4000);
-    expect(env.MONGODB_URI).toBe('mongodb://localhost:27017/nearme-test');
+    const parsed = envSchema.parse(validEnv);
+    expect(parsed.PORT).toBe(4000);
+    expect(parsed.MONGODB_URI).toBe('mongodb://localhost:27017/nearme-test');
   });
 });
