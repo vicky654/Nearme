@@ -1,0 +1,53 @@
+import { apiClient } from './axiosClient';
+import type { User, PrivacySettings } from '../types/user';
+
+export async function getMe(): Promise<{ user: User }> {
+  const res = await apiClient.get<{ user: User }>('/users/me');
+  return res.data;
+}
+
+export interface UpdateProfileInput {
+  displayName?: string;
+  bio?: string;
+  gender?: string;
+  age?: number;
+  country?: string;
+  city?: string;
+  interests?: string[];
+  languages?: string[];
+}
+
+export async function updateMe(input: UpdateProfileInput): Promise<{ user: User }> {
+  const res = await apiClient.patch<{ user: User }>('/users/me', input);
+  return res.data;
+}
+
+export interface ChangePasswordInput {
+  currentPassword: string;
+  newPassword: string;
+}
+
+export async function changePassword(input: ChangePasswordInput): Promise<{ message: string }> {
+  const res = await apiClient.patch<{ message: string }>('/users/me/password', input);
+  return res.data;
+}
+
+export interface SettingsPayload {
+  theme: 'light' | 'dark' | 'system';
+  privacy: PrivacySettings;
+}
+
+export async function getSettings(): Promise<SettingsPayload> {
+  const res = await apiClient.get<SettingsPayload>('/users/me/settings');
+  return res.data;
+}
+
+export interface UpdateSettingsInput {
+  theme?: 'light' | 'dark' | 'system';
+  privacy?: Partial<PrivacySettings>;
+}
+
+export async function updateSettings(input: UpdateSettingsInput): Promise<SettingsPayload> {
+  const res = await apiClient.patch<SettingsPayload>('/users/me/settings', input);
+  return res.data;
+}

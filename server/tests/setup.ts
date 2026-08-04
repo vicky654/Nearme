@@ -1,0 +1,10 @@
+process.env.NODE_ENV = 'test';
+process.env.PORT = '4000';
+process.env.MONGODB_URI = 'mongodb://localhost:27017/nearme-test';
+process.env.JWT_ACCESS_SECRET = 'test-access-secret-aaaaaaaaaaaaaaaa';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret-bbbbbbbbbbbbbb';
+process.env.JWT_PURPOSE_SECRET = 'test-purpose-secret-cccccccccccccc';
+process.env.RESEND_API_KEY = 'test-resend-key';
+process.env.EMAIL_FROM = 'NearMe <no-reply@test.dev>';
+process.env.CLIENT_URL = 'http://localhost:5173';
+delete process.env.GOOGLE_CLIENT_ID;
