@@ -24,6 +24,11 @@
 
 html { background: rgb(var(--canvas)); height: 100%; }
 
+/* Keep the shared ink token in sync with the selected theme. The utility
+   class is used on the app chrome, so it must not stay hard-coded to light
+   text when the canvas switches to dark mode. */
+.text-ink { color: rgb(var(--text)); }
+
 body {
   @apply m-0 bg-gray-50 font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
   background-image: radial-gradient(circle at 12% -10%, rgba(108, 99, 255, .10), transparent 28rem), radial-gradient(circle at 95% 5%, rgba(244, 114, 182, .08), transparent 24rem);

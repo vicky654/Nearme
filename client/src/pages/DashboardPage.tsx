@@ -32,7 +32,7 @@ export default function DashboardPage() {
           <h1 className="mt-4 text-3xl font-black leading-tight tracking-[-.035em] sm:text-4xl">Hello, {user?.displayName ?? 'Explorer'}!</h1>
           <p className="mt-2 max-w-md text-sm leading-6 text-indigo-100/80">New faces, familiar friends, and conversations worth having—all close by.</p>
           <div className="mt-6 flex flex-wrap gap-2.5">
-            <Button onClick={() => navigate('/nearby')} className="bg-white text-[#28305d] hover:bg-indigo-50"><IonIcon icon={compass} /> Discover nearby<span className="sr-only">📍 Discover Nearby</span></Button>
+            <Button onClick={() => navigate('/nearby')} className="bg-white !text-[#28305d] hover:bg-indigo-50"><IonIcon icon={compass} /> Discover nearby<span className="sr-only">📍 Discover Nearby</span></Button>
             <Button variant="secondary" onClick={() => navigate('/chat')} className="border-white/15 bg-white/10 text-white hover:bg-white/15"><IonIcon icon={chatbubbleEllipses} /> Open chats<span className="sr-only">💬 Open Chat</span></Button>
           </div>
         </div>
