@@ -43,4 +43,19 @@ describe('env config', () => {
     expect(parsed.PORT).toBe(4000);
     expect(parsed.MONGODB_URI).toBe('mongodb://localhost:27017/nearme-test');
   });
+
+  it('parses the development discovery switch as a real boolean', () => {
+    const parsed = envSchema.parse({
+      NODE_ENV: 'production',
+      MONGODB_URI: 'mongodb://localhost:27017/nearme-test',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      JWT_PURPOSE_SECRET: 'c'.repeat(32),
+      RESEND_API_KEY: 'test-key',
+      EMAIL_FROM: 'NearMe <no-reply@test.dev>',
+      CLIENT_URL: 'http://localhost:5173',
+      SHOW_ALL_USERS: 'false',
+    });
+    expect(parsed.SHOW_ALL_USERS).toBe(false);
+  });
 });

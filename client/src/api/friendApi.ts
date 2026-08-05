@@ -3,10 +3,22 @@ import type { User } from '../types/user';
 
 export interface NearbyUserItem {
   user: User;
+  location: {
+    latitude: number | null;
+    longitude: number | null;
+    hasLocation: boolean;
+  };
   distanceKm: number | null;
   mutualInterests: string[];
   connectionStatus: 'none' | 'pending_sent' | 'pending_received' | 'connected';
   friendshipId?: string;
+}
+
+export interface NearbyMeta {
+  showingAllUsers: boolean;
+  totalRegistered: number;
+  totalOnline: number;
+  radiusKm: number;
 }
 
 export interface SearchUserItem {
@@ -37,8 +49,8 @@ export async function updateLocation(latitude: number, longitude: number): Promi
   await apiClient.patch('/users/location', { latitude, longitude });
 }
 
-export async function getNearbyUsers(radius = 20): Promise<{ users: NearbyUserItem[] }> {
-  const response = await apiClient.get<{ users: NearbyUserItem[] }>('/users/nearby', {
+export async function getNearbyUsers(radius = 20): Promise<{ users: NearbyUserItem[]; meta?: NearbyMeta }> {
+  const response = await apiClient.get<{ users: NearbyUserItem[]; meta?: NearbyMeta }>('/users/nearby', {
     params: { radius },
   });
   return response.data;

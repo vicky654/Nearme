@@ -7,6 +7,7 @@ import { AppError } from '../utils/AppError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { toPublicUser } from '../utils/toPublicUser';
 import { comparePassword, hashPassword } from '../services/passwordService';
+import { env } from '../config/env';
 
 async function requireUser(userId: string | undefined) {
   if (!userId) {
@@ -169,16 +170,33 @@ export const getNearbyUsers: RequestHandler = asyncHandler(async (req, res) => {
     status: 'active',
   };
 
-  const candidateUsers = await User.find(queryFilter);
+  const candidateUsers = await User.find(queryFilter).sort({ lastSeenAt: -1, createdAt: -1 });
 
-  const userLat = user.location?.coordinates[1] ?? 0;
-  const userLon = user.location?.coordinates[0] ?? 0;
+  const hasCoordinates = (location?: { coordinates?: number[] } | null) => {
+    const coordinates = location?.coordinates;
+    return Boolean(
+      coordinates &&
+        coordinates.length === 2 &&
+        coordinates.every((value) => Number.isFinite(value)) &&
+        (coordinates[0] !== 0 || coordinates[1] !== 0),
+    );
+  };
+
+  const userHasLocation = hasCoordinates(user.location);
+  const userLat = userHasLocation ? user.location!.coordinates[1] : null;
+  const userLon = userHasLocation ? user.location!.coordinates[0] : null;
+  const showAllUsers = env.SHOW_ALL_USERS;
+  const totalRegistered = candidateUsers.length;
+  const totalOnline = candidateUsers.filter((candidate) => !candidate.privacy?.hideOnlineStatus && candidate.lastSeenAt).length;
 
   const nearbyUsers = candidateUsers
     .map((u) => {
-      const uLat = u.location?.coordinates[1] ?? 0;
-      const uLon = u.location?.coordinates[0] ?? 0;
-      const distance = user.location && u.location ? calculateHaversineKm(userLat, userLon, uLat, uLon) : null;
+      const hasLocation = hasCoordinates(u.location);
+      const uLat = hasLocation ? u.location!.coordinates[1] : null;
+      const uLon = hasLocation ? u.location!.coordinates[0] : null;
+      const distance = userLat !== null && userLon !== null && uLat !== null && uLon !== null
+        ? calculateHaversineKm(userLat, userLon, uLat, uLon)
+        : null;
       const mutualInterests = u.interests.filter((i) => user.interests.includes(i));
       const fInfo = friendshipMap.get(u._id.toString());
 
@@ -202,15 +220,28 @@ export const getNearbyUsers: RequestHandler = asyncHandler(async (req, res) => {
           interests: u.interests,
           lastSeenAt: u.privacy?.hideOnlineStatus ? null : u.lastSeenAt,
         },
+        location: {
+          latitude: uLat,
+          longitude: uLon,
+          hasLocation,
+        },
         distanceKm: u.privacy?.hideDistance ? null : distance,
         mutualInterests,
         connectionStatus,
         friendshipId: fInfo?.id,
       };
     })
-    .filter((item) => item.distanceKm === null || item.distanceKm <= radius);
+    .filter((item) => showAllUsers || item.distanceKm === null || item.distanceKm <= radius);
 
-  res.status(200).json({ users: nearbyUsers });
+  res.status(200).json({
+    users: nearbyUsers,
+    meta: {
+      showingAllUsers: showAllUsers,
+      totalRegistered,
+      totalOnline,
+      radiusKm: radius,
+    },
+  });
 });
 
 export const searchUsers: RequestHandler = asyncHandler(async (req, res) => {

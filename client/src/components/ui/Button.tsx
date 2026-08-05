@@ -9,11 +9,11 @@ export interface ButtonProps
 }
 
 const VARIANT_CLASSES: Record<NonNullable<ButtonProps['variant']>, string> = {
-  primary: 'bg-brand-600 text-white hover:bg-brand-500 disabled:bg-brand-500 shadow-brand-600/20',
+  primary: 'bg-brand-600 text-white shadow-lg shadow-brand-600/20 hover:bg-brand-500 hover:shadow-brand-500/30 active:scale-[.98] disabled:bg-brand-500',
   secondary:
-    'border border-gray-200 bg-white text-gray-800 hover:bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:bg-gray-700',
-  ghost: 'bg-transparent text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-800',
-  danger: 'bg-red-600 text-white hover:bg-red-500 disabled:bg-red-400',
+    'border border-gray-200 bg-white text-gray-800 shadow-sm hover:-translate-y-0.5 hover:border-brand-200 hover:bg-brand-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 dark:hover:border-brand-700 dark:hover:bg-gray-700',
+  ghost: 'bg-transparent text-gray-900 hover:bg-brand-50 hover:text-brand-700 dark:text-gray-100 dark:hover:bg-gray-800 dark:hover:text-brand-300',
+  danger: 'bg-red-600 text-white shadow-lg shadow-red-600/15 hover:bg-red-500 active:scale-[.98] disabled:bg-red-400',
 };
 
 const SIZE_CLASSES: Record<NonNullable<ButtonProps['size']>, string> = {
@@ -29,7 +29,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       whileTap={{ scale: 0.97 }}
       disabled={disabled || isLoading}
       aria-busy={isLoading}
-      className={`inline-flex items-center justify-center gap-2 rounded-2xl font-semibold shadow-sm transition-all disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     >
       {isLoading && (

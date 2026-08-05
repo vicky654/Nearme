@@ -61,5 +61,23 @@ describe('Nearby & Geolocation API', () => {
     expect(res.body.users.length).toBe(1);
     expect(res.body.users[0].user.username).toBe('bob');
     expect(res.body.users[0].distanceKm).toBeGreaterThan(0);
+    expect(res.body.meta).toEqual(expect.objectContaining({ totalRegistered: 1, totalOnline: expect.any(Number), showingAllUsers: false }));
+  });
+
+  it('keeps users without finalized coordinates visible with a null distance', async () => {
+    await User.create({
+      username: 'sandy',
+      displayName: 'Sandy',
+      email: 'sandy@example.com',
+      avatarUrl: 'https://example.com/sandy.png',
+    });
+
+    const res = await request(app)
+      .get('/api/v1/users/nearby?radius=1')
+      .set('Authorization', `Bearer ${tokenA}`);
+
+    expect(res.status).toBe(200);
+    const sandy = res.body.users.find((item: any) => item.user.username === 'sandy');
+    expect(sandy).toEqual(expect.objectContaining({ distanceKm: null, location: { latitude: null, longitude: null, hasLocation: false } }));
   });
 });

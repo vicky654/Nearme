@@ -7,7 +7,7 @@
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --surface: 255 255 255;
-  --canvas: 247 248 252;
+  --canvas: 247 248 253;
   --text: 23 32 51;
   --muted: 105 115 134;
   --line: 229 232 240;
@@ -26,6 +26,7 @@ html { background: rgb(var(--canvas)); height: 100%; }
 
 body {
   @apply m-0 bg-gray-50 font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+  background-image: radial-gradient(circle at 12% -10%, rgba(108, 99, 255, .10), transparent 28rem), radial-gradient(circle at 95% 5%, rgba(244, 114, 182, .08), transparent 24rem);
   -webkit-overflow-scrolling: touch;
   overscroll-behavior-y: none;
   min-width: 320px;
@@ -57,9 +58,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 ::selection { background: rgba(91, 108, 249, .2); }
 
 .app-card {
-  @apply rounded-[1.5rem] border border-gray-200/70 bg-white shadow-card dark:border-gray-800 dark:bg-gray-900;
+  @apply rounded-[1.5rem] border shadow-card;
+  border-color: rgb(var(--line) / .72);
+  background: linear-gradient(145deg, rgb(var(--surface) / .98), rgb(var(--surface) / .90));
+  transition: border-color .2s ease, box-shadow .2s ease, transform .2s ease;
 }
-.page-shell { @apply mx-auto w-full max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6; }
+.app-card:hover {
+  border-color: rgb(108 99 255 / .28);
+  box-shadow: 0 16px 42px rgba(42, 51, 92, .12);
+}
+.page-shell { @apply mx-auto w-full max-w-6xl px-4 pb-8 pt-5 sm:px-6 sm:pt-7; }
 .eyebrow { @apply text-[11px] font-bold uppercase tracking-[.16em] text-brand-600 dark:text-brand-500; }
 .scrollbar-none::-webkit-scrollbar { display: none; }
 .scrollbar-none { scrollbar-width: none; }
@@ -90,4 +98,23 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 
 .pt-safe {
   padding-top: max(1rem, var(--sat));
+}
+
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / .45), transparent);
+  animation: skeleton-shimmer 1.5s ease-in-out infinite;
+  content: '';
+}
+[data-theme='dark'] .skeleton-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / .08), transparent); }
+@keyframes skeleton-shimmer { to { transform: translateX(100%); } }
+
+@media (max-width: 640px) {
+  .app-card:hover { transform: none; }
 }

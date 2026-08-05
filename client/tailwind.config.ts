@@ -7,7 +7,7 @@ export default {
     extend: {
       colors: {
         ink: '#172033',
-        brand: { 50: '#f0f5ff', 100: '#dfeaff', 500: '#5b6cf9', 600: '#4958e8', 700: '#3e49c5' },
+        brand: { 50: '#f1f2ff', 100: '#e6e8ff', 500: '#6c63ff', 600: '#5948e8', 700: '#4533c9' },
         coral: '#ff6b67',
       },
       fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },

@@ -86,9 +86,9 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const title = titles[location.pathname] ?? 'NearMe';
 
   return (
-    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#f7f8fc] text-ink dark:bg-gray-950 dark:text-gray-100">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[rgb(var(--canvas))] text-ink dark:text-gray-100">
       <NetworkBanner isOnline={isOnline} />
-      <motion.header initial={false} animate={{ y: chromeHidden ? -90 : 0, marginBottom: chromeHidden ? -64 : 0 }} className="relative z-40 shrink-0 border-b border-gray-200/60 bg-white/85 pt-[var(--sat)] backdrop-blur-2xl dark:border-gray-800 dark:bg-gray-950/85">
+      <motion.header initial={false} animate={{ y: chromeHidden ? -90 : 0, marginBottom: chromeHidden ? -64 : 0 }} className="relative z-40 shrink-0 border-b border-gray-200/60 bg-white/80 pt-[var(--sat)] backdrop-blur-2xl dark:border-gray-800 dark:bg-gray-950/80">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
           <button aria-label="Open menu" onClick={() => setDrawerOpen(true)} className="-ml-1 grid h-11 w-11 place-items-center rounded-2xl text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 md:hidden"><IonIcon icon={menu} className="text-2xl" /></button>
           <Link to="/dashboard" className="hidden items-center gap-2.5 md:flex">

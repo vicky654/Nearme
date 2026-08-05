@@ -15,6 +15,13 @@ export const envSchema = z.object({
   CHAT_UPLOAD_DIR: z.string().optional(),
   PUBLIC_SERVER_URL: z.string().url().optional(),
   FCM_PROJECT_ID: z.string().min(1).optional(),
+  // Development uses the relaxed discovery mode by default so test accounts
+  // without finalized geolocation are still visible. Set SHOW_ALL_USERS=false
+  // when you want to exercise production-style radius filtering locally.
+  SHOW_ALL_USERS: z.preprocess(
+    (value) => (typeof value === 'string' ? value.trim().toLowerCase() === 'true' : value),
+    z.boolean(),
+  ).default(process.env.NODE_ENV === 'development'),
 });
 
 export const env = envSchema.parse(process.env);
