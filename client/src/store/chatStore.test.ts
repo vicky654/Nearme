@@ -93,4 +93,18 @@ describe('chatStore', () => {
     });
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('bounds inactive conversation message caches', () => {
+    for (let index = 0; index < 21; index += 1) {
+      useChatStore.getState().setMessages(`conversation-${index}`, [{
+        ...baseMessage,
+        _id: `message-${index}`,
+        conversationId: `conversation-${index}`,
+      }]);
+    }
+
+    expect(Object.keys(useChatStore.getState().messagesMap)).toHaveLength(20);
+    expect(useChatStore.getState().messagesMap['conversation-0']).toBeUndefined();
+    expect(useChatStore.getState().messagesMap['conversation-20']).toHaveLength(1);
+  });
 });

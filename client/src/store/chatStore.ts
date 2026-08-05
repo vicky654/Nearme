@@ -38,7 +38,9 @@ interface ChatStore {
 }
 
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
-const MAX_CACHED_MESSAGES_PER_CONVERSATION = 10_000;
+const MAX_CACHED_MESSAGES_PER_CONVERSATION = 2_000;
+const MAX_CACHED_CONVERSATIONS = 20;
+const MAX_CACHED_DRAFTS = 40;
 const STATUS_RANK: Record<ChatMessage['status'], number> = {
   failed: -1,
   sending: 0,
@@ -61,6 +63,18 @@ function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]) {
     merged.set(message._id, { ...merged.get(message._id), ...message });
   });
   return sortMessages([...merged.values()]).slice(-MAX_CACHED_MESSAGES_PER_CONVERSATION);
+}
+
+function cacheMessages(messagesMap: Record<string, ChatMessage[]>, conversationId: string, messages: ChatMessage[]) {
+  const next = { ...messagesMap };
+  delete next[conversationId];
+  next[conversationId] = messages;
+  const cachedIds = Object.keys(next);
+  while (cachedIds.length > MAX_CACHED_CONVERSATIONS) {
+    const oldestId = cachedIds.shift();
+    if (oldestId) delete next[oldestId];
+  }
+  return next;
 }
 
 function sortConversations(conversations: ConversationItem[]) {
@@ -105,28 +119,19 @@ export const useChatStore = create<ChatStore>((set) => ({
   })),
 
   setMessages: (conversationId, messages) => set((state) => ({
-    messagesMap: { ...state.messagesMap, [conversationId]: mergeMessages([], messages) },
+    messagesMap: cacheMessages(state.messagesMap, conversationId, mergeMessages([], messages)),
   })),
 
   addMessage: (conversationId, message) => set((state) => ({
-    messagesMap: {
-      ...state.messagesMap,
-      [conversationId]: mergeMessages(state.messagesMap[conversationId] || [], [message]),
-    },
+    messagesMap: cacheMessages(state.messagesMap, conversationId, mergeMessages(state.messagesMap[conversationId] || [], [message])),
   })),
 
   addMessages: (conversationId, messages) => set((state) => ({
-    messagesMap: {
-      ...state.messagesMap,
-      [conversationId]: mergeMessages(state.messagesMap[conversationId] || [], messages),
-    },
+    messagesMap: cacheMessages(state.messagesMap, conversationId, mergeMessages(state.messagesMap[conversationId] || [], messages)),
   })),
 
   reconcileMessage: (conversationId, message) => set((state) => ({
-    messagesMap: {
-      ...state.messagesMap,
-      [conversationId]: mergeMessages(state.messagesMap[conversationId] || [], [message]),
-    },
+    messagesMap: cacheMessages(state.messagesMap, conversationId, mergeMessages(state.messagesMap[conversationId] || [], [message])),
   })),
 
   updateMessage: (conversationId, messageId, patch) => set((state) => ({
@@ -212,8 +217,13 @@ export const useChatStore = create<ChatStore>((set) => ({
 
   setDraft: (conversationId, draft) => set((state) => {
     const drafts = { ...state.drafts };
+    delete drafts[conversationId];
     if (draft) drafts[conversationId] = draft;
-    else delete drafts[conversationId];
+    const cachedIds = Object.keys(drafts);
+    while (cachedIds.length > MAX_CACHED_DRAFTS) {
+      const oldestId = cachedIds.shift();
+      if (oldestId) delete drafts[oldestId];
+    }
     return { drafts };
   }),
 
