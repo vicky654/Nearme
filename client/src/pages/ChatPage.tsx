@@ -221,8 +221,8 @@ export default function ChatPage() {
   const isTyping = activeConversationId ? (typingMap[activeConversationId] || []).length > 0 : false;
 
   return (
-    <div className="h-[calc(100vh-4rem)] w-full overflow-hidden">
-      <div className="flex h-full w-full">
+    <div className="mx-auto h-[calc(100dvh-4rem-var(--sat))] w-full max-w-7xl overflow-hidden md:p-4">
+      <div className="flex h-full w-full overflow-hidden bg-white md:rounded-[2rem] md:border md:border-gray-200/70 md:shadow-card dark:bg-gray-900 md:dark:border-gray-800">
         {/* Sidebar / Conversation List */}
         <div
           className={`h-full w-full md:w-80 lg:w-96 flex-shrink-0 ${

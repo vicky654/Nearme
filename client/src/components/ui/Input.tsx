@@ -17,8 +17,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
     const inputType = enableToggle && isPasswordType ? (showPassword ? 'text' : 'password') : type;
 
     return (
-      <div className="flex flex-col gap-1">
-        <label htmlFor={inputId} className="text-sm font-medium text-gray-700 dark:text-gray-300">
+      <div className="flex flex-col gap-1.5">
+        <label htmlFor={inputId} className="text-xs font-bold text-gray-600 dark:text-gray-300">
           {label}
         </label>
         <div className="relative flex items-center">
@@ -28,9 +28,9 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             type={inputType}
             aria-invalid={Boolean(error)}
             aria-describedby={error ? `${inputId}-error` : undefined}
-            className={`w-full rounded-lg border px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:bg-gray-900 dark:text-gray-100 ${
+            className={`min-h-12 w-full rounded-2xl border bg-gray-50/80 px-4 py-3 text-sm shadow-inner shadow-gray-100/50 transition focus:bg-white focus:outline-none focus:ring-4 focus:ring-brand-500/10 dark:bg-gray-950/50 dark:text-gray-100 dark:shadow-none ${
               enableToggle ? 'pr-10' : ''
-            } ${error ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} ${className}`}
+            } ${error ? 'border-red-500' : 'border-gray-200 focus:border-brand-500 dark:border-gray-700'} ${className}`}
             {...props}
           />
           {enableToggle && isPasswordType && (

@@ -73,7 +73,7 @@ export default function ProfilePage() {
 
   if (query.isPending) {
     return (
-      <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
+      <div className="page-shell max-w-4xl space-y-5">
         <Skeleton className="h-48 w-full rounded-3xl" />
         <Skeleton className="h-24 w-full rounded-2xl" />
       </div>
@@ -101,23 +101,19 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6 animate-in fade-in duration-300">
+    <div className="page-shell max-w-4xl space-y-5">
       {/* Cover Banner & Profile Card */}
-      <div className="relative rounded-3xl bg-white shadow-sm border border-gray-200 overflow-hidden dark:border-gray-800 dark:bg-gray-900">
+      <div className="app-card relative overflow-hidden rounded-[2rem]">
         {/* Cover Photo */}
-        <div className="h-48 w-full bg-gradient-to-r from-indigo-600 via-purple-600 to-indigo-800 relative">
-          <div className="absolute inset-0 bg-black/10" />
+        <div className="relative h-48 w-full bg-[#252c59] sm:h-56">
+          <div className="absolute -right-16 -top-28 h-80 w-80 rounded-full bg-brand-500/60 blur-3xl" /><div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-fuchsia-500/25 blur-3xl" />
         </div>
 
         {/* Profile Info Row */}
         <div className="relative px-6 pb-6 pt-0">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-16 sm:-mt-14 mb-4">
             <div className="relative inline-block">
-              <img
-                src={user.avatarUrl}
-                alt={user.displayName}
-                className="h-28 w-28 rounded-full border-4 border-white object-cover shadow-md dark:border-gray-900"
-              />
+              {user.avatarUrl ? <img src={user.avatarUrl} alt={user.displayName} className="h-28 w-28 rounded-[2rem] border-4 border-white object-cover shadow-xl dark:border-gray-900 sm:h-32 sm:w-32" /> : <div role="img" aria-label={user.displayName} className="grid h-28 w-28 place-items-center rounded-[2rem] border-4 border-white bg-gradient-to-br from-brand-500 to-violet-600 text-4xl font-black text-white shadow-xl dark:border-gray-900 sm:h-32 sm:w-32">{user.displayName.charAt(0).toUpperCase()}</div>}
               <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
             </div>
 
@@ -157,7 +153,7 @@ export default function ProfilePage() {
         {/* Left Column: Bio & Info */}
         <div className="flex flex-col gap-6 md:col-span-2">
           {/* Bio Card */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="app-card p-5 sm:p-6">
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">About Me</h3>
             <p className="mt-2 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
               {user.bio || 'No bio added yet. Click Edit Profile to tell others about yourself!'}
@@ -165,7 +161,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Interests */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="app-card p-5 sm:p-6">
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Interests</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {user.interests.length === 0 ? (
@@ -184,7 +180,7 @@ export default function ProfilePage() {
           </div>
 
           {/* Languages */}
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="app-card p-5 sm:p-6">
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Languages</h3>
             <div className="mt-3 flex flex-wrap gap-2">
               {user.languages.length === 0 ? (
@@ -205,7 +201,7 @@ export default function ProfilePage() {
 
         {/* Right Column: Quick Stats & Connections */}
         <div className="flex flex-col gap-6">
-          <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+          <div className="app-card p-5 sm:p-6">
             <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100">Account Overview</h3>
             <div className="mt-4 flex flex-col gap-3 text-xs">
               <div className="flex justify-between border-b border-gray-100 pb-2 dark:border-gray-800">
@@ -230,7 +226,7 @@ export default function ProfilePage() {
       {/* Edit Profile Modal */}
       {isEditing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-900">
+          <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl dark:bg-gray-900">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Profile</h2>
               <button

@@ -45,16 +45,16 @@ export default function SearchPage() {
   });
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6 p-6 animate-in fade-in duration-300">
+    <div className="page-shell max-w-5xl space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Social Search</h1>
+        <p className="eyebrow">Explore the community</p><h1 className="mt-1 text-2xl font-black tracking-tight text-gray-900 dark:text-gray-100">Find someone interesting</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Find and connect with people by name, city, country, or shared passions
         </p>
       </div>
 
       {/* Filter Control Bar */}
-      <div className="grid grid-cols-1 gap-3 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm sm:grid-cols-2 lg:grid-cols-4 dark:border-gray-800 dark:bg-gray-900">
+      <div className="app-card grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
         <Input
           label="Search by name"
           placeholder="Username or display name..."
@@ -111,7 +111,7 @@ export default function SearchPage() {
             return (
               <div
                 key={uid}
-                className="flex flex-col justify-between rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-1 hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+                className="app-card flex flex-col justify-between p-5 transition-all hover:-translate-y-1 hover:shadow-soft"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">

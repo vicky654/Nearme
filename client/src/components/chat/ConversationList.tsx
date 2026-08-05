@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { IonIcon } from '@ionic/react';
+import { searchOutline } from 'ionicons/icons';
 import type { ConversationItem } from '../../api/chatApi';
 import { getUserId } from '../../types/user';
 
@@ -36,26 +38,26 @@ export function ConversationList({
   });
 
   return (
-    <div className="flex h-full flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+    <div className="flex h-full flex-col border-r border-gray-200/70 bg-white dark:border-gray-800 dark:bg-gray-900">
       {/* Header */}
       <div className="flex flex-col gap-3 p-4 border-b border-gray-100 dark:border-gray-800">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Messages</h2>
+          <div><p className="eyebrow">Stay close</p><h2 className="text-2xl font-black tracking-tight text-gray-900 dark:text-gray-100">Messages</h2></div>
           <button
             type="button"
             onClick={() => setShowArchived((prev) => !prev)}
-            className="text-xs font-medium text-indigo-600 hover:underline dark:text-indigo-400"
+            className="rounded-xl bg-gray-100 px-2.5 py-2 text-[10px] font-bold text-brand-600 dark:bg-gray-800"
           >
             {showArchived ? 'View Active' : 'View Archived'}
           </button>
         </div>
-        <input
+        <div className="relative"><IonIcon icon={searchOutline} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" /><input
           type="text"
           placeholder="Search chats..."
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
-          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
-        />
+          className="min-h-11 w-full rounded-2xl border-0 bg-gray-100 pl-10 pr-3 text-sm outline-none ring-brand-500/20 focus:ring-4 dark:bg-gray-800 dark:text-gray-100"
+        /></div>
       </div>
 
       {/* List */}
@@ -76,9 +78,9 @@ export function ConversationList({
               <div
                 key={conv._id}
                 onClick={() => onSelectConversation(conv._id)}
-                className={`group relative flex cursor-pointer items-center justify-between gap-3 p-4 transition-colors ${
+                className={`group relative mx-2 flex cursor-pointer items-center justify-between gap-3 rounded-2xl p-3 transition-colors ${
                   isActive
-                    ? 'bg-indigo-50 dark:bg-indigo-950/40'
+                    ? 'bg-brand-50 dark:bg-brand-500/10'
                     : 'hover:bg-gray-50 dark:hover:bg-gray-800/50'
                 }`}
               >
@@ -87,7 +89,7 @@ export function ConversationList({
                     <img
                       src={recipient.avatarUrl}
                       alt={recipient.displayName}
-                      className="h-12 w-12 rounded-full object-cover"
+                      className="h-12 w-12 rounded-2xl object-cover"
                     />
                     {isOnline && (
                       <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />

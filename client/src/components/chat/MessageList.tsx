@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { motion } from 'framer-motion';
 import type { ChatMessage } from '../../api/chatApi';
 import { getUserId } from '../../types/user';
 
@@ -26,22 +27,24 @@ export function MessageList({
   }, [messages, isTyping]);
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50/50 dark:bg-gray-950/40">
+    <div className="flex-1 space-y-3 overflow-y-auto bg-[#f7f8fc] p-4 dark:bg-gray-950/60 sm:p-6">
+      {messages.length > 0 && <div className="sticky top-2 z-10 mx-auto w-fit rounded-full bg-white/85 px-3 py-1 text-[10px] font-bold text-gray-400 shadow-sm backdrop-blur dark:bg-gray-900/85">Today</div>}
       {messages.map((msg) => {
         const senderIdStr = typeof msg.senderId === 'object' ? getUserId(msg.senderId) : String(msg.senderId);
         const isOwn = senderIdStr === currentUserId.toString();
         const isDeleted = Boolean(msg.deletedAt);
 
         return (
-          <div
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: .98 }} animate={{ opacity: 1, y: 0, scale: 1 }}
             key={msg._id}
             className={`flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}
           >
             <div
-              className={`group relative max-w-[75%] rounded-2xl px-4 py-2.5 text-sm shadow-sm ${
+              className={`group relative max-w-[82%] rounded-[1.25rem] px-4 py-2.5 text-sm shadow-sm sm:max-w-[70%] ${
                 isOwn
-                  ? 'bg-indigo-600 text-white rounded-br-none'
-                  : 'bg-white text-gray-900 border border-gray-200 rounded-bl-none dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100'
+                  ? 'rounded-br-md bg-brand-600 text-white shadow-brand-500/15'
+                  : 'rounded-bl-md border border-gray-200/70 bg-white text-gray-900 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-100'
               }`}
             >
               {/* Content */}
@@ -85,7 +88,7 @@ export function MessageList({
                 </div>
               )}
             </div>
-          </div>
+          </motion.div>
         );
       })}
 

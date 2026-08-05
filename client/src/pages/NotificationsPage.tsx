@@ -133,10 +133,10 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
+    <div className="page-shell max-w-4xl space-y-5">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Notification Center</h1>
+          <p className="eyebrow">What's new</p><h1 className="mt-1 text-2xl font-black tracking-tight text-gray-900 dark:text-gray-100">Activity</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400">
             View and manage all your real-time activity and alerts
           </p>

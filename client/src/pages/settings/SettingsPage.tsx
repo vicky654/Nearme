@@ -30,37 +30,41 @@ export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6 p-6">
-      <h1 className="text-xl font-semibold">Settings</h1>
-      <div role="tablist" className="flex gap-2 border-b border-gray-200 dark:border-gray-800">
+    <div className="page-shell max-w-3xl">
+      <div className="mb-5"><p className="eyebrow">Make it yours</p><h1 className="mt-1 text-2xl font-black tracking-tight">Settings</h1><p className="mt-1 text-xs text-gray-400">Account, privacy and app preferences</p></div>
+      <div role="tablist" className="scrollbar-none mb-4 flex gap-2 overflow-x-auto pb-1">
         {TABS.map((tab) => (
           <button
             key={tab.key}
             role="tab"
             aria-selected={activeTab === tab.key}
             onClick={() => setActiveTab(tab.key)}
-            className={`px-3 py-2 text-sm font-medium ${
+            className={`min-h-10 shrink-0 rounded-2xl px-4 py-2 text-xs font-bold transition ${
               activeTab === tab.key
-                ? 'border-b-2 border-indigo-600 text-indigo-600'
-                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                ? 'bg-brand-600 text-white shadow-md shadow-brand-500/20'
+                : 'border border-gray-200 bg-white text-gray-500 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400'
             }`}
           >
             {tab.label}
           </button>
         ))}
       </div>
-      {activeTab === 'profile' && <ProfileTab />}
-      {activeTab === 'password' && <PasswordTab />}
-      {activeTab === 'privacy' && <PrivacyTab />}
-      {activeTab === 'theme' && <ThemeTab />}
-      {activeTab === 'notifications' && <NotificationsTab />}
+      <div className="app-card p-5 sm:p-7">
+        {activeTab === 'profile' && <ProfileTab />}
+        {activeTab === 'password' && <PasswordTab />}
+        {activeTab === 'privacy' && <PrivacyTab />}
+        {activeTab === 'theme' && <ThemeTab />}
+        {activeTab === 'notifications' && <NotificationsTab />}
+      </div>
     </div>
   );
 }
 
 function ProfileTab() {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-3">
+      <div className="grid h-14 w-14 place-items-center rounded-2xl bg-brand-50 text-2xl dark:bg-brand-500/10">👤</div>
+      <h2 className="text-lg font-black">Your public profile</h2>
       <p className="text-sm text-gray-600 dark:text-gray-400">
         Edit your display name, bio, interests, and other profile details from your profile page.
       </p>
@@ -96,7 +100,7 @@ function PasswordTab() {
 
   return (
     <form
-      className="flex max-w-sm flex-col gap-4"
+      className="flex max-w-md flex-col gap-4"
       noValidate
       onSubmit={handleSubmit((values) => mutation.mutate(values))}
     >
@@ -167,14 +171,15 @@ function PrivacyTab() {
   }
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2">
       {PRIVACY_LABELS.map(({ key, label }) => (
-        <label key={key} className="flex items-center justify-between gap-4 text-sm">
-          {label}
+        <label key={key} className="flex min-h-[58px] items-center justify-between gap-4 rounded-2xl px-3 text-sm hover:bg-gray-50 dark:hover:bg-gray-800/50">
+          <span className="font-semibold">{label}</span>
           <input
             type="checkbox"
             checked={query.data!.privacy[key]}
             onChange={(e) => mutation.mutate({ [key]: e.target.checked })}
+            className="h-5 w-5 accent-brand-600"
           />
         </label>
       ))}
@@ -199,16 +204,16 @@ function ThemeTab() {
   }
 
   return (
-    <div className="flex gap-3">
+    <div className="grid grid-cols-3 gap-3">
       {THEME_OPTIONS.map((option) => (
         <button
           key={option}
           onClick={() => handleSelect(option)}
           aria-pressed={theme === option}
-          className={`rounded-xl border px-4 py-2 text-sm capitalize ${
+          className={`min-h-24 rounded-2xl border p-3 text-sm font-bold capitalize transition ${
             theme === option
-              ? 'border-indigo-600 bg-indigo-50 text-indigo-600 dark:bg-indigo-950'
-              : 'border-gray-300 dark:border-gray-700'
+              ? 'border-brand-600 bg-brand-50 text-brand-600 ring-2 ring-brand-500/10 dark:bg-brand-500/10'
+              : 'border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'
           }`}
         >
           {option}
@@ -243,7 +248,7 @@ function NotificationsTab() {
           <span className="font-semibold text-gray-900 dark:text-gray-100">Play Notification Sounds</span>
           <p className="text-xs text-gray-500">Play a pleasant sound for incoming messages and friend requests</p>
         </div>
-        <input type="checkbox" checked={soundEnabled} onChange={toggleSound} />
+        <input className="h-5 w-5 accent-brand-600" type="checkbox" checked={soundEnabled} onChange={toggleSound} />
       </label>
 
       <div className="flex items-center justify-between gap-4 border-t border-gray-100 pt-4 dark:border-gray-800 text-sm">

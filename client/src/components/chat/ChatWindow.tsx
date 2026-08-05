@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { IonIcon } from '@ionic/react';
+import { callOutline, videocamOutline } from 'ionicons/icons';
 import type { ConversationItem, ChatMessage } from '../../api/chatApi';
 import { getUserId } from '../../types/user';
 import { MessageList } from './MessageList';
@@ -58,9 +60,9 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex h-full flex-col bg-white dark:bg-gray-900">
+    <div className="relative flex h-full flex-col bg-white dark:bg-gray-900">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-800">
+      <div className="flex min-h-[68px] items-center justify-between border-b border-gray-200/70 px-3 py-2.5 dark:border-gray-800 sm:px-4">
         <div className="flex items-center gap-3">
           {onBackMobile && (
             <button
@@ -76,7 +78,7 @@ export function ChatWindow({
             <img
               src={recipient.avatarUrl}
               alt={recipient.displayName}
-              className="h-10 w-10 rounded-full object-cover"
+              className="h-11 w-11 rounded-2xl object-cover"
             />
             {isOnline && (
               <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
@@ -91,6 +93,7 @@ export function ChatWindow({
           </div>
         </div>
 
+        <div className="ml-auto flex items-center gap-1"><button type="button" aria-label="Voice call" className="grid h-10 w-10 place-items-center rounded-2xl text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10"><IonIcon icon={callOutline} className="text-xl" /></button><button type="button" aria-label="Video call" className="hidden h-10 w-10 place-items-center rounded-2xl text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10 sm:grid"><IonIcon icon={videocamOutline} className="text-xl" /></button></div>
         {/* Action Menu Button */}
         <button
           type="button"

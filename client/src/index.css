@@ -6,15 +6,50 @@
   color-scheme: light;
   --sat: env(safe-area-inset-top, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
+  --surface: 255 255 255;
+  --canvas: 247 248 252;
+  --text: 23 32 51;
+  --muted: 105 115 134;
+  --line: 229 232 240;
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
+  --surface: 24 27 40;
+  --canvas: 14 16 25;
+  --text: 241 243 249;
+  --muted: 157 164 184;
+  --line: 48 53 70;
 }
 
+html { background: rgb(var(--canvas)); }
+
 body {
-  @apply bg-gray-50 text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
+  @apply m-0 bg-gray-50 font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;
+  min-width: 320px;
+}
+
+* { box-sizing: border-box; }
+button, a, input, select, textarea { -webkit-tap-highlight-color: transparent; }
+button, [role='button'], a { touch-action: manipulation; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(91, 108, 249, .3);
+  outline-offset: 2px;
+}
+::selection { background: rgba(91, 108, 249, .2); }
+
+.app-card {
+  @apply rounded-[1.5rem] border border-gray-200/70 bg-white shadow-card dark:border-gray-800 dark:bg-gray-900;
+}
+.page-shell { @apply mx-auto w-full max-w-6xl px-4 pb-8 pt-4 sm:px-6 sm:pt-6; }
+.eyebrow { @apply text-[11px] font-bold uppercase tracking-[.16em] text-brand-600 dark:text-brand-500; }
+.scrollbar-none::-webkit-scrollbar { display: none; }
+.scrollbar-none { scrollbar-width: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
 
 .pb-safe {

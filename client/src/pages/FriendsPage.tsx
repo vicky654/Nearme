@@ -75,9 +75,9 @@ export default function FriendsPage() {
   });
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6 p-6">
+    <div className="page-shell max-w-4xl space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Friends & Connections</h1>
+        <p className="eyebrow">Your circle</p><h1 className="mt-1 text-2xl font-black tracking-tight text-gray-900 dark:text-gray-100">Friends & connections</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400">
           Manage your connections, pending requests, and blocked accounts
         </p>
@@ -132,7 +132,7 @@ export default function FriendsPage() {
               {friendsQuery.data.friends.map(({ friendshipId, user }) => (
                 <div
                   key={friendshipId}
-                  className="flex flex-col justify-between rounded-3xl border border-gray-200 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-gray-800 dark:bg-gray-900"
+                  className="app-card flex flex-col justify-between p-5 transition-all hover:-translate-y-0.5 hover:shadow-soft"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
@@ -199,7 +199,7 @@ export default function FriendsPage() {
                 {requestsQuery.data?.incoming.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                    className="app-card flex items-center justify-between p-4"
                   >
                     <div className="flex items-center gap-3">
                       <img
@@ -249,7 +249,7 @@ export default function FriendsPage() {
                 {requestsQuery.data?.outgoing.map((item) => (
                   <div
                     key={item.id}
-                    className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                    className="app-card flex items-center justify-between p-4"
                   >
                     <div className="flex items-center gap-3">
                       <img
@@ -290,7 +290,7 @@ export default function FriendsPage() {
               {requestsQuery.data?.blocked.map((u) => (
                 <div
                   key={getUserId(u)}
-                  className="flex items-center justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900"
+                  className="app-card flex items-center justify-between p-4"
                 >
                   <div className="flex items-center gap-3">
                     <img

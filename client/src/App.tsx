@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { IonApp } from '@ionic/react';
 import { RouterProvider } from 'react-router-dom';
 import router from './routes/router';
 import { Toaster } from './components/ui/Toaster';
@@ -30,10 +31,12 @@ function AppContent() {
 
 export default function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <ErrorBoundary>
-        <AppContent />
-      </ErrorBoundary>
-    </QueryClientProvider>
+    <IonApp>
+      <QueryClientProvider client={queryClient}>
+        <ErrorBoundary>
+          <AppContent />
+        </ErrorBoundary>
+      </QueryClientProvider>
+    </IonApp>
   );
 }
