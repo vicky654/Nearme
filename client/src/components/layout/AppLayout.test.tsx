@@ -56,10 +56,12 @@ describe('AppLayout', () => {
   });
 
   it('renders navigation, the signed-in user avatar, and the page content', () => {
-    renderLayout();
+    const { container } = renderLayout();
     expect(screen.getAllByText('Home')[0]).toBeInTheDocument();
     expect(screen.getAllByText('Nearby')[0]).toBeInTheDocument();
     expect(screen.getByText('Page content')).toBeInTheDocument();
+    expect(container.querySelectorAll('ion-content')).toHaveLength(1);
+    expect(container.querySelector('ion-refresher')).toBeInTheDocument();
   });
 
   it('logs out and clears the auth store via ProfileDropdown', async () => {

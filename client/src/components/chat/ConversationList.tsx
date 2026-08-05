@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { IonIcon } from '@ionic/react';
 import { searchOutline } from 'ionicons/icons';
 import type { ConversationItem } from '../../api/chatApi';
@@ -28,14 +28,14 @@ export function ConversationList({
   const [filter, setFilter] = useState('');
   const [showArchived, setShowArchived] = useState(false);
 
-  const filteredConversations = conversations.filter((c) => {
+  const filteredConversations = useMemo(() => conversations.filter((c) => {
     if (!c.recipient) return false;
     const matchesFilter =
       c.recipient.displayName.toLowerCase().includes(filter.toLowerCase()) ||
       c.recipient.username.toLowerCase().includes(filter.toLowerCase());
     const matchesArchive = showArchived ? c.isArchived : !c.isArchived;
     return matchesFilter && matchesArchive;
-  });
+  }), [conversations, filter, showArchived]);
 
   return (
     <div className="flex h-full flex-col border-r border-gray-200/70 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -87,6 +87,8 @@ export function ConversationList({
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="relative flex-shrink-0">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={recipient.avatarUrl}
                       alt={recipient.displayName}
                       className="h-12 w-12 rounded-2xl object-cover"

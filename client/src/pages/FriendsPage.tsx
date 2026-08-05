@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { getFriends, getFriendRequests, acceptFriendRequest, rejectFriendRequest, cancelFriendRequest, removeFriend, unblockUser } from '../api/friendApi';
@@ -8,11 +7,12 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { toast } from '../store/toastStore';
+import { useSessionState } from '../hooks/useSessionState';
 
 type Tab = 'friends' | 'pending' | 'blocked';
 
 export default function FriendsPage() {
-  const [activeTab, setActiveTab] = useState<Tab>('friends');
+  const [activeTab, setActiveTab] = useSessionState<Tab>('nearme.friends.tab', 'friends');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
@@ -138,6 +138,8 @@ export default function FriendsPage() {
                     <div className="flex items-center gap-3">
                       <div className="relative">
                         <img
+                          loading="lazy"
+                          decoding="async"
                           src={user.avatarUrl}
                           alt={user.displayName}
                           className="h-12 w-12 rounded-full object-cover shadow-sm"
@@ -203,6 +205,8 @@ export default function FriendsPage() {
                   >
                     <div className="flex items-center gap-3">
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={item.user.avatarUrl}
                         alt={item.user.displayName}
                         className="h-10 w-10 rounded-full object-cover"
@@ -253,6 +257,8 @@ export default function FriendsPage() {
                   >
                     <div className="flex items-center gap-3">
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={item.user.avatarUrl}
                         alt={item.user.displayName}
                         className="h-10 w-10 rounded-full object-cover"
@@ -294,6 +300,8 @@ export default function FriendsPage() {
                 >
                   <div className="flex items-center gap-3">
                     <img
+                      loading="lazy"
+                      decoding="async"
                       src={u.avatarUrl}
                       alt={u.displayName}
                       className="h-10 w-10 rounded-full object-cover"

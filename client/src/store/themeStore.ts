@@ -46,3 +46,10 @@ export const useThemeStore = create<ThemeState>((set) => ({
 }));
 
 applyTheme(useThemeStore.getState().theme);
+
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
+  systemTheme.addEventListener?.('change', () => {
+    if (useThemeStore.getState().theme === 'system') applyTheme('system');
+  });
+}

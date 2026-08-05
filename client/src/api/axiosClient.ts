@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 const rawBaseURL = (import.meta.env.VITE_API_BASE_URL as string) || '/api/v1';
 const baseURL = rawBaseURL.replace(/\/$/, '');
 
-export const apiClient = axios.create({ baseURL, withCredentials: true });
+export const apiClient = axios.create({ baseURL, withCredentials: true, timeout: 15_000 });
 export const axiosClient = apiClient;
 export default apiClient;
 
@@ -44,16 +44,22 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error: AxiosError) => {
     const originalConfig = error.config as RetryableConfig | undefined;
-    const isRefreshCall = originalConfig?.url?.includes('/auth/refresh') ?? false;
+    const isAuthCall = originalConfig?.url?.includes('/auth/') ?? false;
+    const hasAuthenticatedSession = Boolean(useAuthStore.getState().accessToken);
 
-    if (error.response?.status === 401 && originalConfig && !originalConfig._retry && !isRefreshCall) {
+    if (error.response?.status === 401 && originalConfig && !originalConfig._retry && !isAuthCall && hasAuthenticatedSession) {
       originalConfig._retry = true;
       try {
         const newAccessToken = await refreshAccessToken();
         originalConfig.headers.Authorization = `Bearer ${newAccessToken}`;
         return apiClient(originalConfig);
       } catch (refreshError) {
-        useAuthStore.getState().clearAuth();
+        const refreshStatus = (refreshError as AxiosError).response?.status;
+        if (refreshStatus === 401 || refreshStatus === 403) {
+          const hadUser = Boolean(useAuthStore.getState().user);
+          useAuthStore.getState().clearAuth();
+          if (hadUser && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nearme:session-expired'));
+        }
         return Promise.reject(refreshError);
       }
     }

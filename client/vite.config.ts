@@ -4,4 +4,16 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: { port: 5173 },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules/@ionic') || id.includes('node_modules/@capacitor') || id.includes('node_modules/ionicons')) return 'native-runtime';
+          if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) return 'react-runtime';
+          if (id.includes('node_modules/@tanstack') || id.includes('node_modules/axios') || id.includes('node_modules/zustand')) return 'data-runtime';
+          if (id.includes('node_modules/framer-motion')) return 'motion-runtime';
+        },
+      },
+    },
+  },
 });

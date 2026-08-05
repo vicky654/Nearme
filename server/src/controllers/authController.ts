@@ -18,6 +18,7 @@ import { REFRESH_COOKIE_NAME, setRefreshCookie, clearRefreshCookie } from '../ut
 
 const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/9.x/initials/svg';
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+const ROTATION_GRACE_MS = 15_000;
 
 export const register: RequestHandler = asyncHandler(async (req, res) => {
   const { username, displayName, email, password } = req.body as {
@@ -114,12 +115,13 @@ export const refresh: RequestHandler = asyncHandler(async (req, res) => {
   }
 
   const tokenHash = hashRefreshToken(rawToken);
-  const session = await UserSession.findOne({
-    refreshTokenHash: tokenHash,
-    revokedAt: null,
-    expiresAt: { $gt: new Date() },
-  });
-  if (!session) {
+  const session = await UserSession.findOne({ refreshTokenHash: tokenHash, expiresAt: { $gt: new Date() } });
+  const isGracefulRotationReplay = Boolean(
+    session?.revokedAt
+    && session.revokedReason === 'rotated'
+    && Date.now() - session.revokedAt.getTime() <= ROTATION_GRACE_MS
+  );
+  if (!session || (session.revokedAt && !isGracefulRotationReplay)) {
     throw new AppError(401, 'Invalid or expired session');
   }
 
@@ -130,8 +132,11 @@ export const refresh: RequestHandler = asyncHandler(async (req, res) => {
 
   const { rememberMe } = session;
 
-  session.revokedAt = new Date();
-  await session.save();
+  if (!session.revokedAt) {
+    session.revokedAt = new Date();
+    session.revokedReason = 'rotated';
+    await session.save();
+  }
 
   const newRawToken = generateRefreshToken();
   await UserSession.create({
@@ -154,8 +159,8 @@ export const logout: RequestHandler = asyncHandler(async (req, res) => {
   if (rawToken) {
     const tokenHash = hashRefreshToken(rawToken);
     await UserSession.updateOne(
-      { refreshTokenHash: tokenHash, revokedAt: null },
-      { revokedAt: new Date() }
+      { refreshTokenHash: tokenHash },
+      { revokedAt: new Date(), revokedReason: 'logout' }
     );
   }
 
@@ -223,7 +228,7 @@ export const resetPassword: RequestHandler = asyncHandler(async (req, res) => {
   user.passwordChangedAt = new Date();
   await user.save();
 
-  await UserSession.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() });
+  await UserSession.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date(), revokedReason: 'password_change' });
 
   res.status(200).json({ message: 'Password reset successfully' });
 });

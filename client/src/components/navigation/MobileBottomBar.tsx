@@ -28,7 +28,7 @@ export function MobileBottomBar({ hidden = false }: { hidden?: boolean }) {
       initial={false}
       animate={{ y: hidden ? 110 : 0, opacity: hidden ? 0 : 1 }}
       transition={{ type: 'spring', stiffness: 420, damping: 38 }}
-      className="fixed inset-x-0 bottom-0 z-40 md:hidden"
+      className="keyboard-hide fixed inset-x-0 bottom-0 z-40 md:hidden"
     >
       <nav aria-label="Primary navigation" className="mx-auto max-w-lg border-t border-gray-200/70 bg-white/90 px-2 pb-[max(.45rem,var(--sab))] pt-1.5 shadow-[0_-10px_35px_rgba(32,38,70,.08)] backdrop-blur-2xl dark:border-gray-800 dark:bg-gray-950/88">
         <div className="grid grid-cols-5">

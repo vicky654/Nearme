@@ -13,6 +13,10 @@ interface ChatWindowProps {
   currentUserId: string;
   isOnline: boolean;
   isTyping: boolean;
+  isLoadingMessages?: boolean;
+  isLoadingOlder?: boolean;
+  hasOlderMessages?: boolean;
+  onLoadOlderMessages?: () => Promise<void>;
   onSendMessage: (content: string) => void;
   onEditMessage: (messageId: string, newContent: string) => void;
   onDeleteMessage: (messageId: string) => void;
@@ -29,6 +33,10 @@ export function ChatWindow({
   currentUserId,
   isOnline,
   isTyping,
+  isLoadingMessages = false,
+  isLoadingOlder = false,
+  hasOlderMessages = false,
+  onLoadOlderMessages,
   onSendMessage,
   onEditMessage,
   onDeleteMessage,
@@ -138,6 +146,10 @@ export function ChatWindow({
         onDeleteMessage={onDeleteMessage}
         isTyping={isTyping}
         recipientName={recipient.displayName}
+        isLoading={isLoadingMessages}
+        isLoadingOlder={isLoadingOlder}
+        hasOlder={hasOlderMessages}
+        onLoadOlder={onLoadOlderMessages}
       />
 
       {/* Message Input */}

@@ -90,4 +90,12 @@ describe('apiClient', () => {
     const refreshCalls = mock.history.post.filter((req) => req.url === '/auth/refresh');
     expect(refreshCalls).toHaveLength(1);
   });
+
+  it('does not treat an authentication endpoint 401 as an expired access token', async () => {
+    mock.onPost('/auth/login').reply(401, { error: 'Invalid email or password' });
+    mock.onPost('/auth/refresh').reply(200, { accessToken: 'unexpected' });
+
+    await expect(apiClient.post('/auth/login', { email: 'a@example.com', password: 'wrong' })).rejects.toBeDefined();
+    expect(mock.history.post.filter((request) => request.url === '/auth/refresh')).toHaveLength(0);
+  });
 });

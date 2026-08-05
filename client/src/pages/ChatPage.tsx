@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getConversations, getMessages, editMessage, deleteMessage, markAsRead, toggleMute, toggleArchive, deleteConversation, ChatMessage } from '../api/chatApi';
 import { blockUser, reportUser } from '../api/friendApi';
 import { connectSocket } from '../api/socket';
@@ -11,6 +11,7 @@ import { ConversationList } from '../components/chat/ConversationList';
 import { ChatWindow } from '../components/chat/ChatWindow';
 import { EmptyState } from '../components/ui/EmptyState';
 import { toast } from '../store/toastStore';
+import { getFriendlyApiError } from '../api/errors';
 
 export default function ChatPage() {
   const location = useLocation();
@@ -28,6 +29,7 @@ export default function ChatPage() {
     addMessage,
     updateMessage,
     deleteMessageInStore,
+    removeMessage,
     typingMap,
     setTyping,
     removeTyping,
@@ -59,16 +61,21 @@ export default function ChatPage() {
   }, [convQuery.data, setConversations]);
 
   // Active Conversation Messages Query
-  const messagesQuery = useQuery({
+  const messagesQuery = useInfiniteQuery({
     queryKey: ['messages', activeConversationId],
-    queryFn: () => getMessages(activeConversationId!),
+    queryFn: ({ pageParam }) => getMessages(activeConversationId!, pageParam),
     enabled: Boolean(activeConversationId),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (lastPage) => lastPage.messages.length === 30 ? lastPage.messages[0]?.createdAt : undefined,
   });
 
   useEffect(() => {
-    if (activeConversationId && messagesQuery.data?.messages) {
-      setMessages(activeConversationId, messagesQuery.data.messages);
-      markAsRead(activeConversationId);
+    if (activeConversationId && messagesQuery.data?.pages) {
+      const fetched = [...messagesQuery.data.pages].reverse().flatMap((page) => page.messages);
+      const existing = useChatStore.getState().messagesMap[activeConversationId] || [];
+      const unique = new Map([...fetched, ...existing].map((message) => [message._id, message]));
+      setMessages(activeConversationId, [...unique.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
+      void markAsRead(activeConversationId).catch(() => undefined);
     }
   }, [activeConversationId, messagesQuery.data, setMessages]);
 
@@ -144,10 +151,14 @@ export default function ChatPage() {
     addMessage(activeConversationId, optMsg);
 
     const socket = connectSocket();
-    socket.emit('message:send', { conversationId: activeConversationId, content }, (res: any) => {
-      if (res?.success && res.message) {
+    socket.timeout(10_000).emit('message:send', { conversationId: activeConversationId, content }, (error: Error | null, res: any) => {
+      if (!error && res?.success && res.message) {
+        removeMessage(activeConversationId, tempId);
         addMessage(activeConversationId, res.message);
         queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      } else {
+        removeMessage(activeConversationId, tempId);
+        toast.error(res?.error ?? 'Message wasn’t sent. Please try again.');
       }
     });
   }
@@ -156,14 +167,14 @@ export default function ChatPage() {
     if (!activeConversationId) return;
     editMessage(activeConversationId, messageId, newContent).then(({ message }) => {
       updateMessage(activeConversationId, messageId, message);
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to edit this message.').message));
   }
 
   function handleDeleteMessage(messageId: string) {
     if (!activeConversationId) return;
     deleteMessage(activeConversationId, messageId).then(() => {
       deleteMessageInStore(activeConversationId, messageId);
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to delete this message.').message));
   }
 
   function handleTypingStart() {
@@ -182,14 +193,14 @@ export default function ChatPage() {
     toggleMute(id).then(({ isMuted }) => {
       updateConversation(id, { isMuted });
       toast.success(isMuted ? 'Chat muted' : 'Chat unmuted');
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to update this chat.').message));
   }
 
   function handleArchiveToggle(id: string) {
     toggleArchive(id).then(({ isArchived }) => {
       updateConversation(id, { isArchived });
       toast.success(isArchived ? 'Chat archived' : 'Chat unarchived');
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to update this chat.').message));
   }
 
   function handleDeleteConv(id: string) {
@@ -197,7 +208,7 @@ export default function ChatPage() {
       setConversations(conversations.filter((c) => c._id !== id));
       if (activeConversationId === id) setActiveConversationId(null);
       toast.success('Conversation deleted');
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to delete this conversation.').message));
   }
 
   function handleBlock(targetUserId: string) {
@@ -205,13 +216,13 @@ export default function ChatPage() {
       toast.success('User blocked');
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
       setActiveConversationId(null);
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to block this user.').message));
   }
 
   function handleReport(targetUserId: string) {
     reportUser(targetUserId, 'Inappropriate Chat').then(() => {
       toast.success('User reported');
-    });
+    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to submit your report.').message));
   }
 
   const activeConv = conversations.find((c) => c._id === activeConversationId);
@@ -221,7 +232,7 @@ export default function ChatPage() {
   const isTyping = activeConversationId ? (typingMap[activeConversationId] || []).length > 0 : false;
 
   return (
-    <div className="mx-auto h-[calc(100dvh-4rem-var(--sat))] w-full max-w-7xl overflow-hidden md:p-4">
+    <div className="mx-auto h-full w-full max-w-7xl overflow-hidden md:p-4">
       <div className="flex h-full w-full overflow-hidden bg-white md:rounded-[2rem] md:border md:border-gray-200/70 md:shadow-card dark:bg-gray-900 md:dark:border-gray-800">
         {/* Sidebar / Conversation List */}
         <div
@@ -254,6 +265,10 @@ export default function ChatPage() {
               currentUserId={getUserId(currentUser!)}
               isOnline={isOnline}
               isTyping={isTyping}
+              isLoadingMessages={messagesQuery.isPending}
+              isLoadingOlder={messagesQuery.isFetchingNextPage}
+              hasOlderMessages={messagesQuery.hasNextPage}
+              onLoadOlderMessages={() => messagesQuery.fetchNextPage().then(() => undefined)}
               onSendMessage={handleSendMessage}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}

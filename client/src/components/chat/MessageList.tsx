@@ -10,6 +10,10 @@ interface MessageListProps {
   onDeleteMessage: (messageId: string) => void;
   isTyping: boolean;
   recipientName: string;
+  isLoading?: boolean;
+  isLoadingOlder?: boolean;
+  hasOlder?: boolean;
+  onLoadOlder?: () => Promise<void>;
 }
 
 export function MessageList({
@@ -19,15 +23,32 @@ export function MessageList({
   onDeleteMessage,
   isTyping,
   recipientName,
+  isLoading = false,
+  isLoadingOlder = false,
+  hasOlder = false,
+  onLoadOlder,
 }: MessageListProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const lastMessageId = messages.at(-1)?._id;
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isTyping]);
+  }, [lastMessageId, isTyping]);
+
+  async function handleScroll() {
+    const container = containerRef.current;
+    if (!container || container.scrollTop > 80 || !hasOlder || isLoadingOlder || !onLoadOlder) return;
+    const previousHeight = container.scrollHeight;
+    await onLoadOlder();
+    requestAnimationFrame(() => {
+      if (containerRef.current) containerRef.current.scrollTop += containerRef.current.scrollHeight - previousHeight;
+    });
+  }
 
   return (
-    <div className="flex-1 space-y-3 overflow-y-auto bg-[#f7f8fc] p-4 dark:bg-gray-950/60 sm:p-6">
+    <div ref={containerRef} onScroll={() => void handleScroll()} className="flex-1 space-y-3 overflow-y-auto bg-[#f7f8fc] p-4 dark:bg-gray-950/60 sm:p-6">
+      {(isLoading || isLoadingOlder) && <div role="status" aria-label={isLoading ? 'Loading messages' : 'Loading older messages'} className="mx-auto flex w-fit items-center gap-2 rounded-full bg-white/90 px-3 py-1.5 text-[10px] font-bold text-gray-400 shadow-sm dark:bg-gray-900"><span className="h-3 w-3 animate-spin rounded-full border-2 border-brand-500 border-t-transparent" />{isLoading ? 'Loading messages…' : 'Loading earlier messages…'}</div>}
       {messages.length > 0 && <div className="sticky top-2 z-10 mx-auto w-fit rounded-full bg-white/85 px-3 py-1 text-[10px] font-bold text-gray-400 shadow-sm backdrop-blur dark:bg-gray-900/85">Today</div>}
       {messages.map((msg) => {
         const senderIdStr = typeof msg.senderId === 'object' ? getUserId(msg.senderId) : String(msg.senderId);

@@ -14,7 +14,7 @@ interface ToastState {
 
 export const useToastStore = create<ToastState>((set) => ({
   toasts: [],
-  addToast: (t) => set((state) => ({ toasts: [...state.toasts, t] })),
+  addToast: (t) => set((state) => ({ toasts: [...state.toasts.filter((item) => item.message !== t.message), t].slice(-3) })),
   removeToast: (id) => set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
 }));
 

@@ -5,17 +5,21 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { AppNotification } from '../api/notificationApi';
+import { IonInfiniteScroll, IonInfiniteScrollContent } from '@ionic/react';
+import { useSessionState } from '../hooks/useSessionState';
 
 type FilterType = 'all' | 'unread' | 'requests' | 'messages';
 
 export default function NotificationsPage() {
-  const [filter, setFilter] = useState<FilterType>('all');
+  const [filter, setFilter] = useSessionState<FilterType>('nearme.notifications.filter', 'all');
+  const [visibleCount, setVisibleCount] = useState(20);
   const navigate = useNavigate();
 
   const {
     notifications,
     grouped,
     isLoading,
+    error,
     unreadCount,
     fetchNotifications,
     markAsRead,
@@ -37,9 +41,12 @@ export default function NotificationsPage() {
     });
   }
 
-  const todayItems = filterItems(grouped.today || []);
-  const yesterdayItems = filterItems(grouped.yesterday || []);
-  const earlierItems = filterItems(grouped.earlier || []);
+  useEffect(() => setVisibleCount(20), [filter]);
+  const allFilteredItems = filterItems([...(grouped.today || []), ...(grouped.yesterday || []), ...(grouped.earlier || [])]);
+  const visibleIds = new Set(allFilteredItems.slice(0, visibleCount).map((item) => item._id));
+  const todayItems = filterItems(grouped.today || []).filter((item) => visibleIds.has(item._id));
+  const yesterdayItems = filterItems(grouped.yesterday || []).filter((item) => visibleIds.has(item._id));
+  const earlierItems = filterItems(grouped.earlier || []).filter((item) => visibleIds.has(item._id));
 
   const totalFilteredCount = todayItems.length + yesterdayItems.length + earlierItems.length;
 
@@ -78,6 +85,8 @@ export default function NotificationsPage() {
             >
               <div className="flex items-start gap-3 min-w-0">
                 <img
+                  loading="lazy"
+                  decoding="async"
                   src={n.senderId?.avatarUrl || 'https://via.placeholder.com/40'}
                   alt={n.senderId?.displayName || 'User'}
                   className="h-11 w-11 rounded-full object-cover flex-shrink-0"
@@ -202,20 +211,23 @@ export default function NotificationsPage() {
         </div>
       )}
 
-      {!isLoading && totalFilteredCount === 0 && (
+      {!isLoading && error && <EmptyState title="Couldn’t load activity" description={error} action={<Button onClick={() => fetchNotifications()}>Try again</Button>} />}
+
+      {!isLoading && !error && totalFilteredCount === 0 && (
         <EmptyState
           title="No notifications"
           description="You are all caught up! New friend requests and messages will appear here instantly."
         />
       )}
 
-      {!isLoading && totalFilteredCount > 0 && (
+      {!isLoading && !error && totalFilteredCount > 0 && (
         <div className="flex flex-col gap-6">
           {renderGroup('Today', todayItems)}
           {renderGroup('Yesterday', yesterdayItems)}
           {renderGroup('Earlier', earlierItems)}
         </div>
       )}
+      <IonInfiniteScroll threshold="160px" disabled={visibleCount >= allFilteredItems.length} onIonInfinite={(event) => { setVisibleCount((count) => Math.min(count + 20, allFilteredItems.length)); event.target.complete(); }}><IonInfiniteScrollContent loadingSpinner="crescent" loadingText="Loading more activity…" /></IonInfiniteScroll>
     </div>
   );
 }

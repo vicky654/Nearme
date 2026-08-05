@@ -2,7 +2,7 @@ import { Outlet } from 'react-router-dom';
 
 export default function AuthLayout() {
   return (
-    <div className="relative flex min-h-screen overflow-hidden bg-[#f7f8fc] px-4 py-8 dark:bg-gray-950 sm:items-center sm:justify-center">
+    <div className="relative flex h-[100dvh] overflow-y-auto bg-[#f7f8fc] px-4 pb-[max(2rem,var(--sab))] pt-[max(2rem,var(--sat))] dark:bg-gray-950 sm:items-center sm:justify-center">
       <div className="pointer-events-none absolute -left-24 -top-24 h-80 w-80 rounded-full bg-brand-500/15 blur-3xl" />
       <div className="pointer-events-none absolute -bottom-28 -right-20 h-96 w-96 rounded-full bg-violet-500/15 blur-3xl" />
       <div className="relative mx-auto flex w-full max-w-md flex-col justify-center">

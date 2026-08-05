@@ -1,7 +1,8 @@
-import { ReactNode, useEffect, useRef, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { IonIcon } from '@ionic/react';
+import { IonContent, IonIcon, IonRefresher, IonRefresherContent } from '@ionic/react';
+import { useQueryClient } from '@tanstack/react-query';
 import { close, compassOutline, helpCircleOutline, lockClosedOutline, menu, peopleOutline, search, settingsOutline, bookmarkOutline, giftOutline, chevronForward, locationOutline } from 'ionicons/icons';
 import { VerifyEmailBanner } from '../auth/VerifyEmailBanner';
 import { NotificationBell } from '../notifications/NotificationBell';
@@ -12,7 +13,11 @@ import { MobileBottomBar } from '../navigation/MobileBottomBar';
 import { CommandPalette } from '../navigation/CommandPalette';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
-import { requestBrowserNotificationPermission } from '../../utils/browserNotificationService';
+import { NetworkBanner } from '../ui/NetworkBanner';
+import { useNetworkStatus } from '../../hooks/useNetworkStatus';
+import { useNativeAppLifecycle } from '../../hooks/useNativeAppLifecycle';
+
+const scrollPositions = new Map<string, number>();
 
 const titles: Record<string, string> = { '/dashboard': 'For you', '/nearby': 'Discover', '/chat': 'Messages', '/notifications': 'Activity', '/profile': 'Profile', '/friends': 'Friends', '/search': 'Search', '/settings': 'Settings' };
 const desktopNav: ReadonlyArray<readonly [string, string]> = [
@@ -27,32 +32,63 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const bindSocketListeners = useNotificationStore((state) => state.bindSocketListeners);
+  const queryClient = useQueryClient();
+  const isOnline = useNetworkStatus();
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const lastScroll = useRef(0);
+  const refreshing = useRef(false);
+  const contentRef = useRef<HTMLIonContentElement>(null);
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  useNativeAppLifecycle(drawerOpen, closeDrawer);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || import.meta.env.MODE === 'test') return;
     const cleanup = bindSocketListeners((path, state) => navigate(path, { state }));
-    void requestBrowserNotificationPermission();
     return cleanup;
   }, [user, bindSocketListeners, navigate]);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setIsSearchOpen((v) => !v); } };
-    const scroll = () => { const next = window.scrollY; setChromeHidden(next > lastScroll.current && next > 90); lastScroll.current = next; };
-    window.addEventListener('keydown', key); window.addEventListener('scroll', scroll, { passive: true });
-    return () => { window.removeEventListener('keydown', key); window.removeEventListener('scroll', scroll); };
+    window.addEventListener('keydown', key);
+    return () => { window.removeEventListener('keydown', key); };
   }, []);
 
-  useEffect(() => { setDrawerOpen(false); document.documentElement.scrollTop = 0; document.body.scrollTop = 0; }, [location.pathname]);
+  useEffect(() => {
+    setDrawerOpen(false);
+    const savedTop = scrollPositions.get(location.pathname) ?? 0;
+    requestAnimationFrame(() => { void contentRef.current?.scrollToPoint(0, savedTop, 0); });
+  }, [location.pathname]);
+
+  function handleScroll(event: CustomEvent<{ scrollTop: number }>) {
+    const next = event.detail.scrollTop;
+    scrollPositions.set(location.pathname, next);
+    setChromeHidden(next > lastScroll.current && next > 90);
+    lastScroll.current = next;
+  }
+
+  async function handleRefresh(event: CustomEvent<{ complete: () => void }>) {
+    if (refreshing.current) return event.detail.complete();
+    refreshing.current = true;
+    try { await queryClient.invalidateQueries({ type: 'active', refetchType: 'active' }); }
+    finally { refreshing.current = false; event.detail.complete(); }
+  }
+
+  useEffect(() => {
+    const expired = () => navigate('/login', { replace: true, state: { reason: 'session-expired', from: location } });
+    window.addEventListener('nearme:session-expired', expired);
+    return () => window.removeEventListener('nearme:session-expired', expired);
+  }, [location, navigate]);
+
   const isFullChat = location.pathname === '/chat' && Boolean(location.state?.conversationId);
+  const isChatRoute = location.pathname === '/chat';
   const title = titles[location.pathname] ?? 'NearMe';
 
   return (
-    <div className="min-h-screen bg-[#f7f8fc] text-ink dark:bg-gray-950 dark:text-gray-100">
-      <motion.header initial={false} animate={{ y: chromeHidden ? -90 : 0 }} className="sticky top-0 z-40 border-b border-gray-200/60 bg-white/85 pt-[var(--sat)] backdrop-blur-2xl dark:border-gray-800 dark:bg-gray-950/85">
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-[#f7f8fc] text-ink dark:bg-gray-950 dark:text-gray-100">
+      <NetworkBanner isOnline={isOnline} />
+      <motion.header initial={false} animate={{ y: chromeHidden ? -90 : 0, marginBottom: chromeHidden ? -64 : 0 }} className="relative z-40 shrink-0 border-b border-gray-200/60 bg-white/85 pt-[var(--sat)] backdrop-blur-2xl dark:border-gray-800 dark:bg-gray-950/85">
         <div className="mx-auto flex h-16 max-w-7xl items-center gap-3 px-4 sm:px-6">
           <button aria-label="Open menu" onClick={() => setDrawerOpen(true)} className="-ml-1 grid h-11 w-11 place-items-center rounded-2xl text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800 md:hidden"><IonIcon icon={menu} className="text-2xl" /></button>
           <Link to="/dashboard" className="hidden items-center gap-2.5 md:flex">
@@ -71,15 +107,18 @@ export default function AppLayout({ children }: { children: ReactNode }) {
         </div>
       </motion.header>
 
-      <VerifyEmailBanner />
-      <main className={isFullChat ? '' : 'pb-24 md:pb-6'}>{children}</main>
+      <div className="shrink-0"><VerifyEmailBanner /></div>
+      {isChatRoute ? <main className="min-h-0 flex-1 overflow-hidden">{children}</main> : <IonContent ref={contentRef} scrollEvents onIonScroll={(event) => handleScroll(event as CustomEvent<{ scrollTop: number }>)} className="min-h-0 flex-1" style={{ '--background': 'transparent' }}>
+        <IonRefresher slot="fixed" pullFactor={0.65} pullMin={70} pullMax={130} onIonRefresh={(event) => void handleRefresh(event as CustomEvent<{ complete: () => void }>)}><IonRefresherContent pullingText="Pull to refresh" refreshingSpinner="crescent" /></IonRefresher>
+        <main className={isFullChat ? '' : 'pb-24 md:pb-6'}>{children}</main>
+      </IonContent>}
       {!isFullChat && <MobileBottomBar hidden={chromeHidden} />}
 
       <AnimatePresence>
         {drawerOpen && <>
-          <motion.button aria-label="Close menu" className="fixed inset-0 z-50 bg-gray-950/40 backdrop-blur-sm md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setDrawerOpen(false)} />
+          <motion.button aria-label="Close menu" className="fixed inset-0 z-50 bg-gray-950/40 backdrop-blur-sm md:hidden" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeDrawer} />
           <motion.aside className="fixed inset-y-0 left-0 z-50 w-[86%] max-w-[340px] overflow-y-auto rounded-r-[2rem] bg-white pb-[max(1.5rem,var(--sab))] pt-[max(1rem,var(--sat))] shadow-2xl dark:bg-gray-900 md:hidden" initial={{ x: '-105%' }} animate={{ x: 0 }} exit={{ x: '-105%' }} transition={{ type: 'spring', stiffness: 360, damping: 34 }}>
-            <div className="flex items-center justify-between px-5"><span className="text-lg font-black tracking-tight">near<span className="text-brand-600">me</span></span><button aria-label="Close menu" onClick={() => setDrawerOpen(false)} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100 dark:bg-gray-800"><IonIcon icon={close} /></button></div>
+            <div className="flex items-center justify-between px-5"><span className="text-lg font-black tracking-tight">near<span className="text-brand-600">me</span></span><button aria-label="Close menu" onClick={closeDrawer} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100 dark:bg-gray-800"><IonIcon icon={close} /></button></div>
             <div className="mx-4 mt-5 overflow-hidden rounded-[1.6rem] bg-gradient-to-br from-brand-600 to-violet-600 p-5 text-white shadow-xl shadow-brand-600/20">
               <div className="flex items-center gap-3"><img src={user?.avatarUrl} alt="" className="h-14 w-14 rounded-2xl border-2 border-white/40 object-cover" /><div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-bold">{user?.displayName}</p><span className="rounded-full bg-amber-300 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-950">Plus</span></div><p className="truncate text-xs text-white/70">@{user?.username}</p></div></div>
               <div className="mt-5 flex gap-2"><div className="rounded-xl bg-white/12 px-3 py-2 text-xs"><strong className="block text-base">12</strong>Connections</div><div className="rounded-xl bg-white/12 px-3 py-2 text-xs"><strong className="block text-base">240</strong>Coins</div></div>

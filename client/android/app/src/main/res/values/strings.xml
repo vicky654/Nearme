@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">NearMe</string>
+    <string name="title_activity_main">NearMe</string>
+    <string name="package_name">com.nearme.app</string>
+    <string name="custom_url_scheme">com.nearme.app</string>
+</resources>

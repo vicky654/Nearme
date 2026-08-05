@@ -8,6 +8,7 @@ export interface IUserSession extends Document {
   createdAt: Date;
   expiresAt: Date;
   revokedAt: Date | null;
+  revokedReason: 'rotated' | 'logout' | 'password_change' | null;
   rememberMe: boolean;
 }
 
@@ -19,6 +20,7 @@ const userSessionSchema = new Schema<IUserSession>({
   createdAt: { type: Date, default: () => new Date() },
   expiresAt: { type: Date, required: true },
   revokedAt: { type: Date, default: null },
+  revokedReason: { type: String, enum: ['rotated', 'logout', 'password_change'], default: null },
   rememberMe: { type: Boolean, default: false },
 });
 

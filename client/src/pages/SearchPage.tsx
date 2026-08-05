@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { searchUsers, sendFriendRequest } from '../api/friendApi';
@@ -9,18 +9,23 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { toast } from '../store/toastStore';
+import { useDebouncedValue } from '../hooks/useDebouncedValue';
+import { useSessionState } from '../hooks/useSessionState';
 
 export default function SearchPage() {
-  const [q, setQ] = useState('');
-  const [city, setCity] = useState('');
-  const [country, setCountry] = useState('');
-  const [interests, setInterests] = useState('');
+  const [q, setQ] = useSessionState('nearme.search.query', '');
+  const [city, setCity] = useSessionState('nearme.search.city', '');
+  const [country, setCountry] = useSessionState('nearme.search.country', '');
+  const [interests, setInterests] = useSessionState('nearme.search.interests', '');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
+  const rawFilters = useMemo(() => ({ q, city, country, interests }), [q, city, country, interests]);
+  const searchFilters = useDebouncedValue(rawFilters, 350);
 
   const searchQuery = useQuery({
-    queryKey: ['search', q, city, country, interests],
-    queryFn: () => searchUsers({ q, city, country, interests }),
+    queryKey: ['search', searchFilters],
+    queryFn: () => searchUsers(searchFilters),
+    placeholderData: (previous) => previous,
   });
 
   const connectMutation = useMutation({
@@ -117,6 +122,8 @@ export default function SearchPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="relative">
                       <img
+                        loading="lazy"
+                        decoding="async"
                         src={item.user.avatarUrl}
                         alt={item.user.displayName}
                         className="h-14 w-14 rounded-full object-cover shadow-sm"

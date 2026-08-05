@@ -65,6 +65,21 @@ describe('POST /api/v1/auth/refresh and /api/v1/auth/logout', () => {
     expect(res.body.accessToken).toEqual(expect.any(String));
   });
 
+  it('tolerates concurrent refreshes from tabs sharing the same rotating cookie', async () => {
+    const app = (await import('../../src/app')).default;
+    const cookie = await loginAndGetCookie(app);
+
+    const [first, second] = await Promise.all([
+      request(app).post('/api/v1/auth/refresh').set('Cookie', cookie),
+      request(app).post('/api/v1/auth/refresh').set('Cookie', cookie),
+    ]);
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(first.body.accessToken).toEqual(expect.any(String));
+    expect(second.body.accessToken).toEqual(expect.any(String));
+  });
+
   it('rejects refresh with 403 when the account has been suspended since login', async () => {
     const app = (await import('../../src/app')).default;
     const User = (await import('../../src/models/User')).default;

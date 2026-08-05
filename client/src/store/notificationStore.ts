@@ -3,6 +3,7 @@ import { AppNotification, getNotifications, markNotificationAsRead, markAllNotif
 import { playNotificationSound, getSoundEnabled, setSoundEnabled } from '../utils/soundService';
 import { showBrowserNotification } from '../utils/browserNotificationService';
 import { connectSocket } from '../api/socket';
+import { getFriendlyApiError } from '../api/errors';
 
 export interface ActionToastData {
   id: string;
@@ -18,6 +19,7 @@ interface NotificationStore {
     earlier: AppNotification[];
   };
   isLoading: boolean;
+  error: string | null;
   soundEnabled: boolean;
   activeToast: ActionToastData | null; // Latest incoming toast
   showWelcomeBackModal: boolean;
@@ -38,13 +40,14 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   unreadCount: 0,
   grouped: { today: [], yesterday: [], earlier: [] },
   isLoading: false,
+  error: null,
   soundEnabled: getSoundEnabled(),
   activeToast: null,
   showWelcomeBackModal: false,
   welcomeBackCounts: { messages: 0, requests: 0 },
 
   fetchNotifications: async () => {
-    set({ isLoading: true });
+    set({ isLoading: true, error: null });
     try {
       const data = await getNotifications();
       set({
@@ -52,6 +55,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
         unreadCount: data.unreadCount,
         grouped: data.grouped,
         isLoading: false,
+        error: null,
       });
 
       // Check if user returned with unread items and popup hasn't been shown this session
@@ -74,8 +78,8 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
           });
         }
       }
-    } catch {
-      set({ isLoading: false });
+    } catch (error) {
+      set({ isLoading: false, error: getFriendlyApiError(error, 'Unable to load notifications.').message });
     }
   },
 

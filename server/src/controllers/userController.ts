@@ -66,7 +66,7 @@ export const changePassword: RequestHandler = asyncHandler(async (req, res) => {
   // log back in on every device, including this one, which is an acceptable and
   // much simpler trade-off than trying to thread a session identifier through the
   // access-token-authenticated request.
-  await UserSession.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date() });
+  await UserSession.updateMany({ userId: user._id, revokedAt: null }, { revokedAt: new Date(), revokedReason: 'password_change' });
 
   res.status(200).json({ message: 'Password updated successfully' });
 });

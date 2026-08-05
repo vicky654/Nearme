@@ -15,6 +15,7 @@ interface ChatStore {
   addMessage: (conversationId: string, message: ChatMessage) => void;
   updateMessage: (conversationId: string, messageId: string, patch: Partial<ChatMessage>) => void;
   deleteMessageInStore: (conversationId: string, messageId: string) => void;
+  removeMessage: (conversationId: string, messageId: string) => void;
   setTyping: (conversationId: string, user: { userId: string; displayName: string } | null) => void;
   removeTyping: (conversationId: string, userId: string) => void;
   setUserOnline: (userId: string, isOnline: boolean) => void;
@@ -70,6 +71,14 @@ export const useChatStore = create<ChatStore>((set) => ({
         messagesMap: { ...state.messagesMap, [conversationId]: updated },
       };
     }),
+
+  removeMessage: (conversationId, messageId) =>
+    set((state) => ({
+      messagesMap: {
+        ...state.messagesMap,
+        [conversationId]: (state.messagesMap[conversationId] || []).filter((message) => message._id !== messageId),
+      },
+    })),
 
   setTyping: (conversationId, user) =>
     set((state) => {
