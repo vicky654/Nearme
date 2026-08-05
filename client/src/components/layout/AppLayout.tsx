@@ -1,4 +1,5 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import '@ionic/react/css/core.css';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { IonApp, IonContent, IonIcon, IonRefresher, IonRefresherContent, setupIonicReact } from '@ionic/react';
@@ -19,6 +20,7 @@ import { useNativeAppLifecycle } from '../../hooks/useNativeAppLifecycle';
 import { hapticNotification } from '../../utils/hapticService';
 import { NotificationType as HapticNotificationType } from '@capacitor/haptics';
 import { toast } from '../../store/toastStore';
+import { preloadPage } from '../../routes/preload';
 
 const scrollPositions = new Map<string, number>();
 setupIonicReact({ mode: 'ios' });
@@ -113,7 +115,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </Link>
           <div className="min-w-0 flex-1 md:hidden"><p className="truncate text-[11px] font-semibold text-gray-400">Near you · Live</p><h1 className="truncate text-[19px] font-extrabold tracking-tight">{title}</h1></div>
           <nav className="mx-auto hidden items-center rounded-2xl bg-gray-100/80 p-1 dark:bg-gray-900 md:flex">
-            {desktopNav.map(([path, label]) => { const active = location.pathname === path; return <Link key={path} to={path} className={`relative rounded-xl px-4 py-2 text-sm font-semibold ${active ? 'text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>{active && <motion.span layoutId="desktop-tab" className="absolute inset-0 rounded-xl bg-brand-600 shadow-sm" />}<span className="relative">{label}</span></Link>; })}
+            {desktopNav.map(([path, label]) => { const active = location.pathname === path; return <Link key={path} to={path} onPointerEnter={() => preloadPage(path)} onFocus={() => preloadPage(path)} className={`relative rounded-xl px-4 py-2 text-sm font-semibold ${active ? 'text-white' : 'text-gray-500 hover:text-gray-900 dark:hover:text-white'}`}>{active && <motion.span layoutId="desktop-tab" className="absolute inset-0 rounded-xl bg-brand-600 shadow-sm" />}<span className="relative">{label}</span></Link>; })}
           </nav>
           <div className="flex items-center gap-1.5">
             <button aria-label="Search" onClick={() => setIsSearchOpen(true)} className="grid h-10 w-10 place-items-center rounded-2xl text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"><IonIcon icon={search} className="text-xl" /></button>

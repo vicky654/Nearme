@@ -5,6 +5,7 @@ import { home, homeOutline, navigate, navigateOutline, chatbubbleEllipses, chatb
 import { ImpactStyle } from '@capacitor/haptics';
 import { useNotificationStore } from '../../store/notificationStore';
 import { hapticImpact } from '../../utils/hapticService';
+import { preloadPage } from '../../routes/preload';
 
 const tabs = [
   { path: '/dashboard', label: 'Home', icon: homeOutline, activeIcon: home },
@@ -21,6 +22,7 @@ export function MobileBottomBar({ hidden = false }: { hidden?: boolean }) {
 
   function select(path: string) {
     hapticImpact(ImpactStyle.Light, 'navigation');
+    preloadPage(path);
     navigateTo(path);
   }
 
@@ -37,7 +39,7 @@ export function MobileBottomBar({ hidden = false }: { hidden?: boolean }) {
             const active = location.pathname === tab.path;
             const badge = tab.path === '/notifications' || tab.path === '/chat';
             return (
-              <button key={tab.path} type="button" aria-current={active ? 'page' : undefined} aria-label={tab.label} onClick={() => select(tab.path)} className="relative flex min-h-[54px] flex-col items-center justify-center gap-0.5 rounded-2xl text-gray-400">
+              <button key={tab.path} type="button" aria-current={active ? 'page' : undefined} aria-label={tab.label} onPointerEnter={() => preloadPage(tab.path)} onTouchStart={() => preloadPage(tab.path)} onClick={() => select(tab.path)} className="relative flex min-h-[54px] flex-col items-center justify-center gap-0.5 rounded-2xl text-gray-400">
                 {active && <motion.span layoutId="mobile-tab" className="absolute inset-x-2 top-0 h-9 rounded-2xl bg-brand-50 dark:bg-brand-500/15" transition={{ type: 'spring', stiffness: 450, damping: 35 }} />}
                 <IonIcon icon={active ? tab.activeIcon : tab.icon} className={`relative z-10 text-[22px] transition-colors ${active ? 'text-brand-600 dark:text-brand-500' : ''}`} />
                 <span className={`relative z-10 text-[10px] font-semibold ${active ? 'text-brand-600 dark:text-brand-500' : ''}`}>{tab.label}</span>

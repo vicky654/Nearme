@@ -1,7 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
-import '@ionic/react/css/core.css';
 import './index.css';
 
 const rootElement = document.getElementById('root');

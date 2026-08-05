@@ -30,16 +30,22 @@ export async function getConversations(req: Request, res: Response, next: NextFu
       .populate('participants', 'username displayName avatarUrl lastSeenAt privacy')
       .populate('lastMessage');
 
-    const result = await Promise.all(
-      conversations.map(async (conv) => {
-        const recipient = conv.participants.find((p) => p._id.toString() !== userId.toString()) as any;
-
-        const unreadCount = await Message.countDocuments({
-          conversationId: conv._id,
-          senderId: { $ne: userId },
-          readBy: { $ne: userId },
+    const userObjectId = new Types.ObjectId(userId);
+    const unreadCounts = conversations.length === 0 ? [] : await Message.aggregate<{ _id: Types.ObjectId; count: number }>([
+      {
+        $match: {
+          conversationId: { $in: conversations.map((conversation) => conversation._id) },
+          senderId: { $ne: userObjectId },
+          readBy: { $ne: userObjectId },
           deletedAt: null,
-        });
+        },
+      },
+      { $group: { _id: '$conversationId', count: { $sum: 1 } } },
+    ]);
+    const unreadCountByConversation = new Map(unreadCounts.map((item) => [item._id.toString(), item.count]));
+
+    const result = conversations.map((conv) => {
+        const recipient = conv.participants.find((p) => p._id.toString() !== userId.toString()) as any;
 
         return {
           _id: conv._id,
@@ -54,13 +60,12 @@ export async function getConversations(req: Request, res: Response, next: NextFu
             : null,
           lastMessage: conv.lastMessage,
           lastMessageAt: conv.lastMessageAt,
-          unreadCount,
+          unreadCount: unreadCountByConversation.get(conv._id.toString()) || 0,
           isMuted: conv.mutedBy.some((id) => id.toString() === userId.toString()),
           isArchived: conv.archivedBy.some((id) => id.toString() === userId.toString()),
           updatedAt: conv.updatedAt,
         };
-      })
-    );
+      });
 
     res.json({ conversations: result });
   } catch (err) {
