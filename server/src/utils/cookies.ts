@@ -10,6 +10,7 @@ export function setRefreshCookie(res: Response, token: string, rememberMe: boole
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? 'none' : 'lax',
+    path: '/',
     ...(rememberMe ? { maxAge: SEVEN_DAYS_MS } : {}),
   });
 }
@@ -20,5 +21,6 @@ export function clearRefreshCookie(res: Response): void {
     httpOnly: true,
     secure: isProd,
     sameSite: isProd ? 'none' : 'lax',
+    path: '/',
   });
 }

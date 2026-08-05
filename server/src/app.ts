@@ -2,14 +2,14 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import { env } from './config/env';
 import { errorHandler } from './middleware/errorHandler';
 import apiV1Router from './routes';
+import { getCorsOptions } from './utils/cors';
 
 const app = express();
 
-app.use(helmet());
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
+app.use(cors(getCorsOptions()));
 app.use(express.json());
 app.use(cookieParser());
 

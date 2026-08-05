@@ -6,6 +6,7 @@ import Conversation from '../models/Conversation';
 import Message from '../models/Message';
 import Friendship from '../models/Friendship';
 import { createAndEmitNotification } from '../services/notificationService';
+import { isAllowedOrigin } from '../utils/cors';
 
 interface AuthenticatedSocket extends Socket {
   data: {
@@ -31,7 +32,13 @@ export function getIO(): Server | null {
 export function setupSocketIO(server: HttpServer): Server {
   const io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:5173',
+      origin: (requestOrigin, callback) => {
+        if (isAllowedOrigin(requestOrigin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('CORS error: Origin not allowed for socket'));
+        }
+      },
       credentials: true,
     },
   });
