@@ -20,8 +20,8 @@ export interface AdminReportItem {
   createdAt: string;
 }
 
-export async function getAdminStats(): Promise<{ stats: AdminStats }> {
-  const response = await apiClient.get<{ stats: AdminStats }>('/admin/stats');
+export async function getAdminStats(signal?: AbortSignal): Promise<{ stats: AdminStats }> {
+  const response = await apiClient.get<{ stats: AdminStats }>('/admin/stats', { signal });
   return response.data;
 }
 
@@ -29,8 +29,8 @@ export async function getAdminUsers(params?: {
   q?: string;
   status?: string;
   role?: string;
-}): Promise<{ users: User[] }> {
-  const response = await apiClient.get<{ users: User[] }>('/admin/users', { params });
+}, signal?: AbortSignal): Promise<{ users: User[] }> {
+  const response = await apiClient.get<{ users: User[] }>('/admin/users', { params, signal });
   return response.data;
 }
 
@@ -46,7 +46,7 @@ export async function deleteAdminUserAccount(targetUserId: string): Promise<void
   await apiClient.delete(`/admin/users/${targetUserId}`);
 }
 
-export async function getAdminReports(): Promise<{ reports: AdminReportItem[] }> {
-  const response = await apiClient.get<{ reports: AdminReportItem[] }>('/admin/reports');
+export async function getAdminReports(signal?: AbortSignal): Promise<{ reports: AdminReportItem[] }> {
+  const response = await apiClient.get<{ reports: AdminReportItem[] }>('/admin/reports', { signal });
   return response.data;
 }

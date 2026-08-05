@@ -15,12 +15,12 @@ export default function AdminPage() {
   const [statusFilter, setStatusFilter] = useState('');
   const queryClient = useQueryClient();
 
-  const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: getAdminStats });
+  const statsQuery = useQuery({ queryKey: ['admin-stats'], queryFn: ({ signal }) => getAdminStats(signal) });
   const usersQuery = useQuery({
     queryKey: ['admin-users', search, statusFilter],
-    queryFn: () => getAdminUsers({ q: search, status: statusFilter }),
+    queryFn: ({ signal }) => getAdminUsers({ q: search, status: statusFilter }, signal),
   });
-  const reportsQuery = useQuery({ queryKey: ['admin-reports'], queryFn: getAdminReports });
+  const reportsQuery = useQuery({ queryKey: ['admin-reports'], queryFn: ({ signal }) => getAdminReports(signal) });
 
   const statusMutation = useMutation({
     mutationFn: ({ userId, status, role }: { userId: string; status?: any; role?: any }) =>

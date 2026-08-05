@@ -57,5 +57,22 @@ describe('env config', () => {
       SHOW_ALL_USERS: 'false',
     });
     expect(parsed.SHOW_ALL_USERS).toBe(false);
+    expect(parsed.SEED_ADMIN).toBe(false);
+  });
+
+  it('rejects development-only discovery and implicit admin credentials in production', () => {
+    const productionEnv = {
+      NODE_ENV: 'production',
+      MONGODB_URI: 'mongodb://localhost:27017/nearme-test',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      JWT_PURPOSE_SECRET: 'c'.repeat(32),
+      RESEND_API_KEY: 'test-key',
+      EMAIL_FROM: 'NearMe <no-reply@test.dev>',
+      CLIENT_URL: 'https://nearme.example.com',
+    };
+
+    expect(() => envSchema.parse({ ...productionEnv, SHOW_ALL_USERS: 'true' })).toThrow();
+    expect(() => envSchema.parse({ ...productionEnv, SEED_ADMIN: 'true' })).toThrow();
   });
 });

@@ -1,5 +1,4 @@
 import { MutationCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { IonApp } from '@ionic/react';
 import { SplashScreen } from '@capacitor/splash-screen';
 import { StatusBar, Style } from '@capacitor/status-bar';
 import { useEffect } from 'react';
@@ -30,6 +29,7 @@ const queryClient = new QueryClient({
         const friendly = getFriendlyApiError(error);
         return friendly.retryable && failureCount < 2;
       },
+      retryDelay: (attempt) => Math.min(1_000 * 2 ** attempt, 10_000),
     },
     mutations: { networkMode: 'online', retry: false },
   },
@@ -69,12 +69,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <IonApp>
-      <QueryClientProvider client={queryClient}>
-        <ErrorBoundary>
-          <AppContent />
-        </ErrorBoundary>
-      </QueryClientProvider>
-    </IonApp>
+    <QueryClientProvider client={queryClient}>
+      <ErrorBoundary>
+        <AppContent />
+      </ErrorBoundary>
+    </QueryClientProvider>
   );
 }

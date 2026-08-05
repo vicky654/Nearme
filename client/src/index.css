@@ -123,6 +123,12 @@ button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible
 [data-theme='dark'] .skeleton-shimmer::after { background: linear-gradient(90deg, transparent, rgb(255 255 255 / .08), transparent); }
 @keyframes skeleton-shimmer { to { transform: translateX(100%); } }
 
+@keyframes toast-enter {
+  from { opacity: 0; transform: translate3d(0, .75rem, 0) scale(.98); }
+  to { opacity: 1; transform: translate3d(0, 0, 0) scale(1); }
+}
+.toast-enter { animation: toast-enter .22s cubic-bezier(.2, .8, .2, 1) both; }
+
 @media (max-width: 640px) {
   .app-card:hover { transform: none; }
 }

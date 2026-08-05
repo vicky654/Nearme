@@ -2,12 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type Keyb
 import { AnimatePresence, motion } from 'framer-motion';
 import { IonIcon } from '@ionic/react';
 import { attachOutline, cameraOutline, close, documentOutline, happyOutline, imageOutline, micOutline, send, stop } from 'ionicons/icons';
-import { Capacitor } from '@capacitor/core';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { ImpactStyle } from '@capacitor/haptics';
 import type { ChatAttachment, ChatMessage } from '../../api/chatApi';
 import { uploadChatAttachment } from '../../api/chatApi';
 import { getFriendlyApiError } from '../../api/errors';
 import { toast } from '../../store/toastStore';
+import { hapticImpact } from '../../utils/hapticService';
 
 interface MessageInputProps {
   conversationId: string;
@@ -58,6 +58,8 @@ export function MessageInput({
   const recordingStreamRef = useRef<MediaStream | null>(null);
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const recordingChunksRef = useRef<Blob[]>([]);
+  const uploadControllerRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef(true);
   const stopCallbacksRef = useRef({ onTypingStop, onRecordingStop });
   stopCallbacksRef.current = { onTypingStop, onRecordingStop };
 
@@ -76,12 +78,32 @@ export function MessageInput({
   }, [content]);
 
   useEffect(() => () => {
+    mountedRef.current = false;
+    uploadControllerRef.current?.abort();
+    uploadControllerRef.current = null;
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
-    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    typingTimeoutRef.current = null;
+    disposeRecording();
     stopCallbacksRef.current.onTypingStop();
     stopCallbacksRef.current.onRecordingStop();
   }, []);
+
+  function disposeRecording() {
+    if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+    recordingTimerRef.current = null;
+    const recorder = recorderRef.current;
+    if (recorder) {
+      recorder.ondataavailable = null;
+      recorder.onstop = null;
+      if (recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch { /* Recorder may already be shutting down. */ }
+      }
+    }
+    recorderRef.current = null;
+    recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
+    recordingStreamRef.current = null;
+    recordingChunksRef.current = [];
+  }
 
   function handleChange(value: string) {
     setContent(value);
@@ -89,7 +111,7 @@ export function MessageInput({
     if (value.trim()) onTypingStart();
     else onTypingStop();
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    typingTimeoutRef.current = setTimeout(onTypingStop, 1_800);
+    typingTimeoutRef.current = setTimeout(() => stopCallbacksRef.current.onTypingStop(), 1_800);
   }
 
   function handleSubmit(event?: FormEvent) {
@@ -105,6 +127,8 @@ export function MessageInput({
     setAttachments([]);
     setShowEmojiPicker(false);
     setShowAttachments(false);
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = null;
     onTypingStop();
   }
 
@@ -119,6 +143,9 @@ export function MessageInput({
     const availableSlots = Math.max(0, 4 - attachments.length);
     const selected = files.slice(0, availableSlots);
     if (selected.length === 0) return;
+    uploadControllerRef.current?.abort();
+    const controller = new AbortController();
+    uploadControllerRef.current = controller;
     setIsUploading(true);
     setShowAttachments(false);
     try {
@@ -128,18 +155,23 @@ export function MessageInput({
         if (!file) continue;
         if (file.size > 8 * 1024 * 1024) throw new Error(`${file.name} is larger than 8 MB`);
         const result = await uploadChatAttachment(conversationId, file, (progress) => {
-          setUploadProgress(Math.round(((index + progress / 100) / selected.length) * 100));
-        });
+          if (mountedRef.current && !controller.signal.aborted) setUploadProgress(Math.round(((index + progress / 100) / selected.length) * 100));
+        }, controller.signal);
         uploaded.push(result.attachment);
       }
-      setAttachments((current) => [...current, ...uploaded]);
+      if (mountedRef.current && !controller.signal.aborted) setAttachments((current) => [...current, ...uploaded]);
     } catch (error) {
-      toast.error(getFriendlyApiError(error, error instanceof Error ? error.message : 'Unable to upload this attachment.').message);
+      if (!controller.signal.aborted) toast.error(getFriendlyApiError(error, error instanceof Error ? error.message : 'Unable to upload this attachment.').message);
     } finally {
-      setIsUploading(false);
-      setUploadProgress(0);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (uploadControllerRef.current === controller) {
+        uploadControllerRef.current = null;
+        if (mountedRef.current) {
+          setIsUploading(false);
+          setUploadProgress(0);
+          if (fileInputRef.current) fileInputRef.current.value = '';
+          if (cameraInputRef.current) cameraInputRef.current.value = '';
+        }
+      }
     }
   }
 
@@ -150,6 +182,10 @@ export function MessageInput({
     }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (!mountedRef.current) {
+        stream.getTracks().forEach((track) => track.stop());
+        return;
+      }
       const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/mp4';
       const recorder = new MediaRecorder(stream, MediaRecorder.isTypeSupported(mimeType) ? { mimeType } : undefined);
       recordingChunksRef.current = [];
@@ -160,7 +196,9 @@ export function MessageInput({
         const blob = new Blob(recordingChunksRef.current, { type: recorder.mimeType || mimeType });
         recordingStreamRef.current?.getTracks().forEach((track) => track.stop());
         recordingStreamRef.current = null;
-        if (blob.size === 0) return;
+        recorderRef.current = null;
+        recordingChunksRef.current = [];
+        if (!mountedRef.current || blob.size === 0) return;
         const extension = blob.type.includes('webm') ? 'webm' : 'm4a';
         await uploadFiles([new File([blob], `voice-${Date.now()}.${extension}`, { type: blob.type })]);
       };
@@ -175,15 +213,14 @@ export function MessageInput({
         return seconds + 1;
       }), 1_000);
       onRecordingStart();
-      if (Capacitor.isNativePlatform()) void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => undefined);
+      hapticImpact(ImpactStyle.Medium, 'voice-recording');
     } catch {
-      toast.error('Microphone access is required to record a voice message.');
+      if (mountedRef.current) toast.error('Microphone access is required to record a voice message.');
     }
   }
 
   function stopRecording() {
     if (recorderRef.current?.state === 'recording') recorderRef.current.stop();
-    recorderRef.current = null;
     if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
     recordingTimerRef.current = null;
     setIsRecording(false);

@@ -5,8 +5,8 @@ import { showBrowserNotification } from '../utils/browserNotificationService';
 import { connectSocket } from '../api/socket';
 import { getFriendlyApiError } from '../api/errors';
 import { useChatStore } from './chatStore';
-import { Capacitor } from '@capacitor/core';
-import { Haptics, NotificationType as HapticNotificationType } from '@capacitor/haptics';
+import { NotificationType as HapticNotificationType } from '@capacitor/haptics';
+import { hapticNotification } from '../utils/hapticService';
 
 export interface ActionToastData {
   id: string;
@@ -50,7 +50,11 @@ interface NotificationStore {
   closeToast: () => void;
   closeWelcomeBackModal: () => void;
   bindSocketListeners: (onNavigate: (path: string, state?: any) => void) => () => void;
+  reset: () => void;
 }
+
+let notificationFetchController: AbortController | null = null;
+let notificationFetchPromise: Promise<void> | null = null;
 
 export const useNotificationStore = create<NotificationStore>((set, get) => ({
   notifications: [],
@@ -64,40 +68,52 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   welcomeBackCounts: { messages: 0, requests: 0 },
 
   fetchNotifications: async () => {
+    if (notificationFetchPromise) return notificationFetchPromise;
+    const controller = new AbortController();
+    notificationFetchController = controller;
     set({ isLoading: true, error: null });
-    try {
-      const data = await getNotifications();
-      set({
-        notifications: data.notifications,
-        unreadCount: data.unreadCount,
-        grouped: data.grouped,
-        isLoading: false,
-        error: null,
-      });
-
-      // Check if user returned with unread items and popup hasn't been shown this session
-      const hasShownPopup = sessionStorage.getItem('nearme_welcome_popup_shown');
-      if (!hasShownPopup && data.unreadCount > 0) {
-        let msgCount = 0;
-        let reqCount = 0;
-        data.notifications.forEach((n) => {
-          if (!n.isRead) {
-            if (n.type === 'new_message') msgCount++;
-            if (n.type === 'friend_request_received') reqCount++;
-          }
+    notificationFetchPromise = (async () => {
+      try {
+        const data = await getNotifications(controller.signal);
+        if (controller.signal.aborted) return;
+        set({
+          notifications: data.notifications,
+          unreadCount: data.unreadCount,
+          grouped: data.grouped,
+          isLoading: false,
+          error: null,
         });
 
-        if (msgCount > 0 || reqCount > 0) {
-          sessionStorage.setItem('nearme_welcome_popup_shown', 'true');
-          set({
-            showWelcomeBackModal: true,
-            welcomeBackCounts: { messages: msgCount, requests: reqCount },
+        // Check if user returned with unread items and popup hasn't been shown this session
+        const hasShownPopup = sessionStorage.getItem('nearme_welcome_popup_shown');
+        if (!hasShownPopup && data.unreadCount > 0) {
+          let msgCount = 0;
+          let reqCount = 0;
+          data.notifications.forEach((n) => {
+            if (!n.isRead) {
+              if (n.type === 'new_message') msgCount++;
+              if (n.type === 'friend_request_received') reqCount++;
+            }
           });
+
+          if (msgCount > 0 || reqCount > 0) {
+            sessionStorage.setItem('nearme_welcome_popup_shown', 'true');
+            set({
+              showWelcomeBackModal: true,
+              welcomeBackCounts: { messages: msgCount, requests: reqCount },
+            });
+          }
+        }
+      } catch (error) {
+        if (!controller.signal.aborted) set({ isLoading: false, error: getFriendlyApiError(error, 'Unable to load notifications.').message });
+      } finally {
+        if (notificationFetchController === controller) {
+          notificationFetchController = null;
+          notificationFetchPromise = null;
         }
       }
-    } catch (error) {
-      set({ isLoading: false, error: getFriendlyApiError(error, 'Unable to load notifications.').message });
-    }
+    })();
+    return notificationFetchPromise;
   },
 
   markAsRead: async (id: string) => {
@@ -147,6 +163,22 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
   closeWelcomeBackModal: () => set({ showWelcomeBackModal: false }),
 
+  reset: () => {
+    notificationFetchController?.abort();
+    notificationFetchController = null;
+    notificationFetchPromise = null;
+    set({
+      notifications: [],
+      unreadCount: 0,
+      grouped: { today: [], yesterday: [], earlier: [] },
+      isLoading: false,
+      error: null,
+      activeToast: null,
+      showWelcomeBackModal: false,
+      welcomeBackCounts: { messages: 0, requests: 0 },
+    });
+  },
+
   bindSocketListeners: (onNavigate) => {
     const socket = connectSocket();
 
@@ -162,17 +194,16 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
       }
 
       const existing = get().notifications.some((candidate) => candidate._id === notification._id);
-      if (!existing) {
-        set((state) => {
-          const notifications = [notification, ...state.notifications];
-          return {
-            notifications,
-            grouped: groupNotifications(notifications),
-            unreadCount: state.unreadCount + 1,
-            activeToast: { id: `toast-${notification._id}`, notification },
-          };
-        });
-      }
+      if (existing) return;
+      set((state) => {
+        const notifications = [notification, ...state.notifications];
+        return {
+          notifications,
+          grouped: groupNotifications(notifications),
+          unreadCount: state.unreadCount + 1,
+          activeToast: { id: `toast-${notification._id}`, notification },
+        };
+      });
 
       const conversation = notification.relatedId
         ? chatState.conversations.find((candidate) => candidate._id === notification.relatedId)
@@ -181,9 +212,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
 
       if (shouldAlert && notification.type === 'new_message') {
         playNotificationSound('message');
-        if (Capacitor.isNativePlatform()) {
-          void Haptics.notification({ type: HapticNotificationType.Success }).catch(() => undefined);
-        }
+        hapticNotification(HapticNotificationType.Success, 'incoming-message');
       } else if (shouldAlert) {
         playNotificationSound('friend_request');
       }

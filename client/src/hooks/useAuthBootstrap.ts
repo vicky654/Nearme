@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { apiClient } from '../api/axiosClient';
+import { apiClient, getAuthGeneration } from '../api/axiosClient';
 import { isDefinitiveSessionFailure } from '../api/errors';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
@@ -14,6 +14,7 @@ let restorePromise: Promise<boolean> | null = null;
 export function restoreSession(): Promise<boolean> {
   if (restorePromise) return restorePromise;
 
+  const generation = getAuthGeneration();
   restorePromise = (async () => {
     try {
       const refreshRes = await apiClient.post<{ accessToken: string }>('/auth/refresh');
@@ -21,6 +22,7 @@ export function restoreSession(): Promise<boolean> {
       const meRes = await apiClient.get<{ user: User }>('/users/me', {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
+      if (generation !== getAuthGeneration()) return false;
       useAuthStore.getState().setAuth(meRes.data.user, accessToken);
       useThemeStore.getState().setTheme(meRes.data.user.theme);
       return true;

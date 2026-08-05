@@ -109,4 +109,21 @@ describe('Chat socket behavior', () => {
     expect(duplicateResponse.message._id.toString()).toBe(inactiveResponse.message._id.toString());
     expect(await Message.countDocuments({ conversationId: conversation._id })).toBe(2);
   });
+
+  it('does not publish a stale online event when a socket disconnects during presence initialization', async () => {
+    const alice = await User.create({ username: 'alice', displayName: 'Alice', email: 'alice.presence@example.com', avatarUrl: 'https://example.com/a.png' });
+    const bob = await User.create({ username: 'bob', displayName: 'Bob', email: 'bob.presence@example.com', avatarUrl: 'https://example.com/b.png' });
+    await Friendship.create({ requesterId: alice._id, recipientId: bob._id, status: 'accepted' });
+
+    const bobSocket = await connect(signAccessToken(bob._id.toString()));
+    const updates: Array<{ userId: string; isOnline: boolean }> = [];
+    bobSocket.on('presence:update', (update) => updates.push(update));
+
+    const aliceSocket = await connect(signAccessToken(alice._id.toString()));
+    aliceSocket.disconnect();
+    await new Promise((resolve) => setTimeout(resolve, 150));
+
+    const aliceUpdates = updates.filter((update) => update.userId === alice._id.toString());
+    expect(aliceUpdates.at(-1)?.isOnline).not.toBe(true);
+  });
 });

@@ -1,8 +1,8 @@
 import { apiClient } from './axiosClient';
 import type { User, PrivacySettings } from '../types/user';
 
-export async function getMe(): Promise<{ user: User }> {
-  const res = await apiClient.get<{ user: User }>('/users/me');
+export async function getMe(signal?: AbortSignal): Promise<{ user: User }> {
+  const res = await apiClient.get<{ user: User }>('/users/me', { signal });
   return res.data;
 }
 
@@ -37,8 +37,8 @@ export interface SettingsPayload {
   privacy: PrivacySettings;
 }
 
-export async function getSettings(): Promise<SettingsPayload> {
-  const res = await apiClient.get<SettingsPayload>('/users/me/settings');
+export async function getSettings(signal?: AbortSignal): Promise<SettingsPayload> {
+  const res = await apiClient.get<SettingsPayload>('/users/me/settings', { signal });
   return res.data;
 }
 

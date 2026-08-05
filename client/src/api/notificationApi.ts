@@ -29,8 +29,8 @@ export interface NotificationsResponse {
   };
 }
 
-export async function getNotifications(): Promise<NotificationsResponse> {
-  const response = await apiClient.get<NotificationsResponse>('/notifications');
+export async function getNotifications(signal?: AbortSignal): Promise<NotificationsResponse> {
+  const response = await apiClient.get<NotificationsResponse>('/notifications', { signal });
   return response.data;
 }
 

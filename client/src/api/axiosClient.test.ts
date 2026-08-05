@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import MockAdapter from 'axios-mock-adapter';
-import { apiClient } from './axiosClient';
+import { apiClient, cancelPendingAuthRefresh } from './axiosClient';
 import { useAuthStore } from '../store/authStore';
 import type { User } from '../types/user';
 
@@ -10,6 +10,7 @@ describe('apiClient', () => {
   let mock: MockAdapter;
 
   beforeEach(() => {
+    cancelPendingAuthRefresh();
     mock = new MockAdapter(apiClient);
     useAuthStore.getState().clearAuth();
   });
@@ -97,5 +98,21 @@ describe('apiClient', () => {
 
     await expect(apiClient.post('/auth/login', { email: 'a@example.com', password: 'wrong' })).rejects.toBeDefined();
     expect(mock.history.post.filter((request) => request.url === '/auth/refresh')).toHaveLength(0);
+  });
+
+  it('prevents a canceled refresh from restoring a logged-out session', async () => {
+    useAuthStore.getState().setAuth(fakeUser, 'expired-token');
+    let resolveRefresh: ((response: [number, { accessToken: string }]) => void) | undefined;
+    mock.onGet('/protected').reply(401);
+    mock.onPost('/auth/refresh').reply(() => new Promise((resolve) => { resolveRefresh = resolve; }));
+
+    const pendingRequest = apiClient.get('/protected');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    cancelPendingAuthRefresh();
+    useAuthStore.getState().clearAuth();
+    resolveRefresh?.([200, { accessToken: 'late-token' }]);
+
+    await expect(pendingRequest).rejects.toBeDefined();
+    expect(useAuthStore.getState().accessToken).toBeNull();
   });
 });

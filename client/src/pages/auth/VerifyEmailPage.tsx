@@ -11,7 +11,7 @@ export default function VerifyEmailPage() {
 
   const query = useQuery({
     queryKey: ['verify-email', token],
-    queryFn: () => verifyEmail(token),
+    queryFn: ({ signal }) => verifyEmail(token, signal),
     enabled: Boolean(token),
     retry: false,
   });

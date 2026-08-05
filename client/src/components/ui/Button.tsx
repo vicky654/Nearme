@@ -1,5 +1,4 @@
 import { ComponentPropsWithoutRef, forwardRef } from 'react';
-import { motion } from 'framer-motion';
 
 export interface ButtonProps
   extends Omit<ComponentPropsWithoutRef<'button'>, 'onAnimationStart' | 'onAnimationEnd' | 'onDrag' | 'onDragStart' | 'onDragEnd'> {
@@ -24,19 +23,18 @@ const SIZE_CLASSES: Record<NonNullable<ButtonProps['size']>, string> = {
 
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ variant = 'primary', size = 'md', isLoading = false, disabled, className = '', children, ...props }, ref) => (
-    <motion.button
+    <button
       ref={ref}
-      whileTap={{ scale: 0.97 }}
       disabled={disabled || isLoading}
       aria-busy={isLoading}
-      className={`inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
+      className={`inline-flex items-center justify-center gap-2 rounded-2xl font-semibold transition-all duration-200 active:scale-[.97] disabled:cursor-not-allowed disabled:opacity-60 disabled:active:scale-100 ${VARIANT_CLASSES[variant]} ${SIZE_CLASSES[size]} ${className}`}
       {...props}
     >
       {isLoading && (
         <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
       )}
       {children}
-    </motion.button>
+    </button>
   )
 );
 Button.displayName = 'Button';

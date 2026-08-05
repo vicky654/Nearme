@@ -37,8 +37,8 @@ export interface ConversationItem {
   updatedAt: string;
 }
 
-export async function getConversations(): Promise<{ conversations: ConversationItem[] }> {
-  const response = await apiClient.get<{ conversations: ConversationItem[] }>('/chats');
+export async function getConversations(signal?: AbortSignal): Promise<{ conversations: ConversationItem[] }> {
+  const response = await apiClient.get<{ conversations: ConversationItem[] }>('/chats', { signal });
   return response.data;
 }
 
@@ -50,10 +50,12 @@ export async function createOrGetConversation(recipientId: string): Promise<{ co
 export async function getMessages(
   conversationId: string,
   before?: string,
-  limit = 30
+  limit = 30,
+  signal?: AbortSignal,
 ): Promise<{ messages: ChatMessage[] }> {
   const response = await apiClient.get<{ messages: ChatMessage[] }>(`/chats/${conversationId}/messages`, {
     params: { before, limit },
+    signal,
   });
   return response.data;
 }
@@ -73,13 +75,15 @@ export async function sendMessage(
 export async function uploadChatAttachment(
   conversationId: string,
   file: File,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  signal?: AbortSignal,
 ): Promise<{ attachment: ChatAttachment }> {
   const data = new FormData();
   data.append('attachment', file);
   const response = await apiClient.post<{ attachment: ChatAttachment }>(`/chats/${conversationId}/attachments`, data, {
     headers: { 'Content-Type': 'multipart/form-data' },
     timeout: 30_000,
+    signal,
     onUploadProgress: (event) => {
       if (event.total) onProgress?.(Math.round((event.loaded / event.total) * 100));
     },

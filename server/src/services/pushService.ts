@@ -36,6 +36,7 @@ export async function sendPushNotification(userId: string, payload: PushPayload)
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
+        signal: AbortSignal.timeout(10_000),
         headers: {
           Authorization: `Bearer ${accessToken}`,
           'Content-Type': 'application/json',

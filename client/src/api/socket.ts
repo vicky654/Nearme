@@ -32,6 +32,8 @@ export function connectSocket(): Socket {
 
 export function disconnectSocket(): void {
   if (socket) {
+    socket.removeAllListeners();
     socket.disconnect();
+    socket = null;
   }
 }

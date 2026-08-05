@@ -24,7 +24,7 @@ export default function SearchPage() {
 
   const searchQuery = useQuery({
     queryKey: ['search', searchFilters],
-    queryFn: () => searchUsers(searchFilters),
+    queryFn: ({ signal }) => searchUsers(searchFilters, signal),
     placeholderData: (previous) => previous,
   });
 

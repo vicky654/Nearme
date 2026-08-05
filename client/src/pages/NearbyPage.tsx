@@ -41,7 +41,7 @@ export default function NearbyPage() {
   const [reportDetails, setReportDetails] = useState('');
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const nearbyQuery = useQuery({ queryKey: ['nearby', radius], queryFn: () => getNearbyUsers(radius) });
+  const nearbyQuery = useQuery({ queryKey: ['nearby', radius], queryFn: ({ signal }) => getNearbyUsers(radius, signal) });
 
   const locationMutation = useMutation({
     mutationFn: ({ lat, lng }: { lat: number; lng: number }) => updateLocation(lat, lng),

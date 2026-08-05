@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useThemeStore } from '../../store/themeStore';
 import { useAuthStore } from '../../store/authStore';
@@ -25,7 +25,7 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
   const user = useAuthStore((state) => state.user);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const commands: CommandItem[] = [
+  const commands = useMemo<CommandItem[]>(() => [
     { id: 'nav-dashboard', icon: '🏠', title: 'Go to Dashboard', category: 'Navigation', action: () => navigate('/dashboard') },
     { id: 'nav-nearby', icon: '📍', title: 'Discover Nearby Users', category: 'Navigation', action: () => navigate('/nearby') },
     { id: 'nav-search', icon: '🔍', title: 'Search Users & Passions', category: 'Navigation', action: () => navigate('/search') },
@@ -44,17 +44,18 @@ export function CommandPalette({ isOpen, onClose }: CommandPaletteProps) {
       category: 'Actions',
       action: () => setTheme(theme === 'dark' ? 'light' : 'dark'),
     },
-  ];
+  ], [navigate, setTheme, theme, user?.role]);
 
-  const filteredCommands = commands.filter((cmd) =>
+  const filteredCommands = useMemo(() => commands.filter((cmd) =>
     cmd.title.toLowerCase().includes(query.toLowerCase())
-  );
+  ), [commands, query]);
 
   useEffect(() => {
     if (isOpen) {
       setQuery('');
       setSelectedIndex(0);
-      setTimeout(() => inputRef.current?.focus(), 50);
+      const focusTimer = window.setTimeout(() => inputRef.current?.focus(), 50);
+      return () => window.clearTimeout(focusTimer);
     }
   }, [isOpen]);
 

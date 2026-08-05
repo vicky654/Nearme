@@ -49,9 +49,10 @@ export async function updateLocation(latitude: number, longitude: number): Promi
   await apiClient.patch('/users/location', { latitude, longitude });
 }
 
-export async function getNearbyUsers(radius = 20): Promise<{ users: NearbyUserItem[]; meta?: NearbyMeta }> {
+export async function getNearbyUsers(radius = 20, signal?: AbortSignal): Promise<{ users: NearbyUserItem[]; meta?: NearbyMeta }> {
   const response = await apiClient.get<{ users: NearbyUserItem[]; meta?: NearbyMeta }>('/users/nearby', {
     params: { radius },
+    signal,
   });
   return response.data;
 }
@@ -61,8 +62,8 @@ export async function searchUsers(params: {
   city?: string;
   country?: string;
   interests?: string;
-}): Promise<{ users: SearchUserItem[] }> {
-  const response = await apiClient.get<{ users: SearchUserItem[] }>('/users/search', { params });
+}, signal?: AbortSignal): Promise<{ users: SearchUserItem[] }> {
+  const response = await apiClient.get<{ users: SearchUserItem[] }>('/users/search', { params, signal });
   return response.data;
 }
 
@@ -94,13 +95,13 @@ export async function unblockUser(targetUserId: string): Promise<void> {
   await apiClient.post('/friends/unblock', { targetUserId });
 }
 
-export async function getFriends(): Promise<{ friends: FriendItem[] }> {
-  const response = await apiClient.get<{ friends: FriendItem[] }>('/friends');
+export async function getFriends(signal?: AbortSignal): Promise<{ friends: FriendItem[] }> {
+  const response = await apiClient.get<{ friends: FriendItem[] }>('/friends', { signal });
   return response.data;
 }
 
-export async function getFriendRequests(): Promise<FriendRequestsResponse> {
-  const response = await apiClient.get<FriendRequestsResponse>('/friends/requests');
+export async function getFriendRequests(signal?: AbortSignal): Promise<FriendRequestsResponse> {
+  const response = await apiClient.get<FriendRequestsResponse>('/friends/requests', { signal });
   return response.data;
 }
 

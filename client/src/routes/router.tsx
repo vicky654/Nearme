@@ -1,9 +1,10 @@
 import { lazy, Suspense } from 'react';
 import { createBrowserRouter, Navigate } from 'react-router-dom';
 import AuthLayout from '../components/layout/AuthLayout';
-import ProtectedRoute from '../components/auth/ProtectedRoute';
-import AdminRoute from '../components/auth/AdminRoute';
+import { Skeleton } from '../components/ui/Skeleton';
 
+const ProtectedRoute = lazy(() => import('../components/auth/ProtectedRoute'));
+const AdminRoute = lazy(() => import('../components/auth/AdminRoute'));
 const LoginPage = lazy(() => import('../pages/auth/LoginPage'));
 const RegisterPage = lazy(() => import('../pages/auth/RegisterPage'));
 const ForgotPasswordPage = lazy(() => import('../pages/auth/ForgotPasswordPage'));
@@ -19,8 +20,24 @@ const ChatPage = lazy(() => import('../pages/ChatPage'));
 const NotificationsPage = lazy(() => import('../pages/NotificationsPage'));
 const AdminPage = lazy(() => import('../pages/AdminPage'));
 
+function RouteSkeleton() {
+  return (
+    <div className="page-shell space-y-5" role="status" aria-label="Loading page">
+      <div className="flex items-center gap-4">
+        <Skeleton className="h-12 w-12 rounded-2xl" />
+        <div className="flex-1 space-y-2"><Skeleton className="h-5 w-40" /><Skeleton className="h-3 w-64 max-w-full" /></div>
+      </div>
+      <Skeleton className="h-36 w-full rounded-[2rem]" />
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 3 }, (_, index) => <Skeleton key={index} className="h-28 rounded-[1.5rem]" />)}
+      </div>
+      <span className="sr-only">Loading…</span>
+    </div>
+  );
+}
+
 function page(element: React.ReactNode) {
-  return <Suspense fallback={<div className="page-shell"><div className="h-32 animate-pulse rounded-[2rem] bg-gray-200 dark:bg-gray-800" /></div>}>{element}</Suspense>;
+  return <Suspense fallback={<RouteSkeleton />}>{element}</Suspense>;
 }
 
 const router = createBrowserRouter([
@@ -35,7 +52,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <ProtectedRoute />,
+    element: page(<ProtectedRoute />),
     children: [
       { path: '/dashboard', element: page(<DashboardPage />) },
       { path: '/nearby', element: page(<NearbyPage />) },
@@ -48,7 +65,7 @@ const router = createBrowserRouter([
     ],
   },
   {
-    element: <AdminRoute />,
+    element: page(<AdminRoute />),
     children: [{ path: '/admin', element: page(<AdminPage />) }],
   },
   { path: '/', element: <Navigate to="/dashboard" replace /> },

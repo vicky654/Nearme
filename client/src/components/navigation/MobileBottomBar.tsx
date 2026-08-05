@@ -2,8 +2,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { IonIcon } from '@ionic/react';
 import { home, homeOutline, navigate, navigateOutline, chatbubbleEllipses, chatbubbleEllipsesOutline, notifications, notificationsOutline, person, personOutline } from 'ionicons/icons';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { ImpactStyle } from '@capacitor/haptics';
 import { useNotificationStore } from '../../store/notificationStore';
+import { hapticImpact } from '../../utils/hapticService';
 
 const tabs = [
   { path: '/dashboard', label: 'Home', icon: homeOutline, activeIcon: home },
@@ -19,7 +20,7 @@ export function MobileBottomBar({ hidden = false }: { hidden?: boolean }) {
   const unreadCount = useNotificationStore((state) => state.unreadCount);
 
   function select(path: string) {
-    void Haptics.impact({ style: ImpactStyle.Light }).catch(() => undefined);
+    hapticImpact(ImpactStyle.Light, 'navigation');
     navigateTo(path);
   }
 

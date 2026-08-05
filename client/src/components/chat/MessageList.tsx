@@ -4,12 +4,13 @@ import { IonIcon } from '@ionic/react';
 import { checkmark, checkmarkDone, copyOutline, arrowUndoOutline, createOutline, documentOutline, trashOutline, timeOutline, warningOutline } from 'ionicons/icons';
 import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
 import { Capacitor } from '@capacitor/core';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { ImpactStyle } from '@capacitor/haptics';
 import { Clipboard } from '@capacitor/clipboard';
 import type { ChatAttachment, ChatMessage } from '../../api/chatApi';
 import type { TypingUser } from '../../store/chatStore';
 import { getUserId } from '../../types/user';
 import { Skeleton } from '../ui/Skeleton';
+import { hapticImpact } from '../../utils/hapticService';
 
 interface MessageListProps {
   messages: ChatMessage[];
@@ -110,13 +111,14 @@ const MessageBubble = memo(function MessageBubble({
   const startLongPress = () => {
     holdTimer.current = setTimeout(() => {
       setShowMenu(true);
-      if (Capacitor.isNativePlatform()) void Haptics.impact({ style: ImpactStyle.Medium }).catch(() => undefined);
+      hapticImpact(ImpactStyle.Medium, 'message-long-press');
     }, 450);
   };
   const cancelLongPress = () => {
     if (holdTimer.current) clearTimeout(holdTimer.current);
     holdTimer.current = null;
   };
+  useEffect(() => cancelLongPress, []);
   const copyMessage = async () => {
     if (Capacitor.isNativePlatform()) await Clipboard.write({ string: message.content });
     else await navigator.clipboard?.writeText(message.content);

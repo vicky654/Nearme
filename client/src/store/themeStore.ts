@@ -49,7 +49,9 @@ applyTheme(useThemeStore.getState().theme);
 
 if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
   const systemTheme = window.matchMedia('(prefers-color-scheme: dark)');
-  systemTheme.addEventListener?.('change', () => {
+  const handleSystemThemeChange = () => {
     if (useThemeStore.getState().theme === 'system') applyTheme('system');
-  });
+  };
+  systemTheme.addEventListener?.('change', handleSystemThemeChange);
+  import.meta.hot?.dispose(() => systemTheme.removeEventListener?.('change', handleSystemThemeChange));
 }

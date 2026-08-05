@@ -139,7 +139,7 @@ const PRIVACY_LABELS: { key: keyof PrivacySettings; label: string }[] = [
 
 function PrivacyTab() {
   const queryClient = useQueryClient();
-  const query = useQuery({ queryKey: ['settings'], queryFn: getSettings });
+  const query = useQuery({ queryKey: ['settings'], queryFn: ({ signal }) => getSettings(signal) });
 
   const mutation = useMutation({
     mutationFn: (privacy: Partial<PrivacySettings>) => updateSettings({ privacy }),

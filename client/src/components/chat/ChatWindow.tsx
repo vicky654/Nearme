@@ -8,6 +8,7 @@ import { getUserId } from '../../types/user';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { Button } from '../ui/Button';
+import { toast } from '../../store/toastStore';
 
 interface ChatWindowProps {
   conversation: ConversationItem;
@@ -143,10 +144,10 @@ export function ChatWindow({
         </div>
 
         <div className="ml-2 flex items-center gap-0.5">
-          <motion.button whileTap={{ scale: 0.9 }} type="button" aria-label="Voice call" className="grid h-11 w-11 place-items-center rounded-2xl text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10">
+          <motion.button whileTap={{ scale: 0.9 }} type="button" aria-label="Voice call" onClick={() => toast.error('Voice calling is not available in this build yet.')} className="grid h-11 w-11 place-items-center rounded-2xl text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-500/10">
             <IonIcon icon={callOutline} className="text-xl" />
           </motion.button>
-          <motion.button whileTap={{ scale: 0.9 }} type="button" aria-label="Video call" className="hidden h-11 w-11 place-items-center rounded-2xl text-brand-600 hover:bg-brand-50 sm:grid dark:hover:bg-brand-500/10">
+          <motion.button whileTap={{ scale: 0.9 }} type="button" aria-label="Video call" onClick={() => toast.error('Video calling is not available in this build yet.')} className="hidden h-11 w-11 place-items-center rounded-2xl text-brand-600 hover:bg-brand-50 sm:grid dark:hover:bg-brand-500/10">
             <IonIcon icon={videocamOutline} className="text-xl" />
           </motion.button>
           <motion.button

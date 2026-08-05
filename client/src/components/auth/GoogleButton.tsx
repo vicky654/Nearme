@@ -46,26 +46,31 @@ export function GoogleButton() {
     if (!GOOGLE_CLIENT_ID) {
       return;
     }
+    let active = true;
 
     function initialize() {
-      if (!window.google || !containerRef.current) {
+      if (!active || !window.google || !containerRef.current) {
         return;
       }
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID as string,
-        callback: (response) => mutation.mutate(response.credential),
+        callback: (response) => { if (active) mutation.mutate(response.credential); },
       });
+      containerRef.current.replaceChildren();
       window.google.accounts.id.renderButton(containerRef.current, { theme: 'outline', size: 'large' });
     }
 
     if (window.google) {
       initialize();
-      return;
+      return () => { active = false; };
     }
 
     const script = document.getElementById('google-identity-script');
     script?.addEventListener('load', initialize);
-    return () => script?.removeEventListener('load', initialize);
+    return () => {
+      active = false;
+      script?.removeEventListener('load', initialize);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

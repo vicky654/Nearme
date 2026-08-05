@@ -34,9 +34,11 @@ interface ChatStore {
   removeTyping: (conversationId: string, userId: string) => void;
   setUserPresence: (userId: string, isOnline: boolean, lastSeenAt?: string | null) => void;
   setDraft: (conversationId: string, draft: string) => void;
+  reset: () => void;
 }
 
 const typingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const MAX_CACHED_MESSAGES_PER_CONVERSATION = 10_000;
 const STATUS_RANK: Record<ChatMessage['status'], number> = {
   failed: -1,
   sending: 0,
@@ -58,7 +60,7 @@ function mergeMessages(existing: ChatMessage[], incoming: ChatMessage[]) {
     if (optimisticMatch && optimisticMatch._id !== message._id) merged.delete(optimisticMatch._id);
     merged.set(message._id, { ...merged.get(message._id), ...message });
   });
-  return sortMessages([...merged.values()]);
+  return sortMessages([...merged.values()]).slice(-MAX_CACHED_MESSAGES_PER_CONVERSATION);
 }
 
 function sortConversations(conversations: ConversationItem[]) {
@@ -208,7 +210,25 @@ export const useChatStore = create<ChatStore>((set) => ({
     };
   }),
 
-  setDraft: (conversationId, draft) => set((state) => ({
-    drafts: { ...state.drafts, [conversationId]: draft },
-  })),
+  setDraft: (conversationId, draft) => set((state) => {
+    const drafts = { ...state.drafts };
+    if (draft) drafts[conversationId] = draft;
+    else delete drafts[conversationId];
+    return { drafts };
+  }),
+
+  reset: () => {
+    typingTimers.forEach(clearTimeout);
+    typingTimers.clear();
+    set({
+      activeConversationId: null,
+      visibleConversationId: null,
+      conversations: [],
+      messagesMap: {},
+      typingMap: {},
+      onlineUsers: new Set<string>(),
+      lastSeenMap: {},
+      drafts: {},
+    });
+  },
 }));

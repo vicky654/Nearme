@@ -28,8 +28,8 @@ export async function logoutUser(): Promise<void> {
   await apiClient.post('/auth/logout');
 }
 
-export async function verifyEmail(token: string): Promise<{ user: User }> {
-  const res = await apiClient.post<{ user: User }>('/auth/verify-email', { token });
+export async function verifyEmail(token: string, signal?: AbortSignal): Promise<{ user: User }> {
+  const res = await apiClient.post<{ user: User }>('/auth/verify-email', { token }, { signal });
   return res.data;
 }
 

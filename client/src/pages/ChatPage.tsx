@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Capacitor } from '@capacitor/core';
-import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import { ImpactStyle } from '@capacitor/haptics';
 import {
   getConversations,
   getMessages,
@@ -26,6 +25,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { toast } from '../store/toastStore';
 import { getFriendlyApiError } from '../api/errors';
 import { playNotificationSound } from '../utils/soundService';
+import { hapticImpact } from '../utils/hapticService';
 
 interface ConversationUpdate {
   conversationId: string;
@@ -34,7 +34,7 @@ interface ConversationUpdate {
 }
 
 function impact(style: ImpactStyle) {
-  if (Capacitor.isNativePlatform()) void Haptics.impact({ style }).catch(() => undefined);
+  hapticImpact(style, 'chat-action');
 }
 
 export default function ChatPage() {
@@ -93,7 +93,7 @@ export default function ChatPage() {
     return () => setVisibleConversationId(null);
   }, [activeConversationId, isPageVisible, mobileView, setVisibleConversationId]);
 
-  const convQuery = useQuery({ queryKey: ['conversations'], queryFn: getConversations });
+  const convQuery = useQuery({ queryKey: ['conversations'], queryFn: ({ signal }) => getConversations(signal) });
 
   useEffect(() => {
     if (convQuery.data?.conversations) setConversations(convQuery.data.conversations);
@@ -101,7 +101,7 @@ export default function ChatPage() {
 
   const messagesQuery = useInfiniteQuery({
     queryKey: ['messages', activeConversationId],
-    queryFn: ({ pageParam }) => getMessages(activeConversationId!, pageParam),
+    queryFn: ({ pageParam, signal }) => getMessages(activeConversationId!, pageParam, 30, signal),
     enabled: Boolean(activeConversationId),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (lastPage) => lastPage.messages.length === 30 ? lastPage.messages[0]?.createdAt : undefined,

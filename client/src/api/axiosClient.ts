@@ -8,7 +8,10 @@ export const apiClient = axios.create({ baseURL, withCredentials: true, timeout:
 export const axiosClient = apiClient;
 export default apiClient;
 
+let sessionRequestController = new AbortController();
+
 apiClient.interceptors.request.use((config) => {
+  if (!config.signal) config.signal = sessionRequestController.signal;
   const token = useAuthStore.getState().accessToken;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
@@ -21,21 +24,46 @@ interface RetryableConfig extends InternalAxiosRequestConfig {
 }
 
 let refreshPromise: Promise<string> | null = null;
+let refreshController: AbortController | null = null;
+let authGeneration = 0;
+
+export function getAuthGeneration(): number {
+  return authGeneration;
+}
+
+export function cancelPendingAuthRefresh(): void {
+  authGeneration += 1;
+  refreshController?.abort();
+  refreshController = null;
+  refreshPromise = null;
+}
+
+export function cancelPendingApiRequests(): void {
+  cancelPendingAuthRefresh();
+  sessionRequestController.abort();
+  sessionRequestController = new AbortController();
+}
 
 function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
-    refreshPromise = apiClient
-      .post<{ accessToken: string }>('/auth/refresh')
+    const generation = authGeneration;
+    const controller = new AbortController();
+    refreshController = controller;
+    const request = apiClient
+      .post<{ accessToken: string }>('/auth/refresh', undefined, { signal: controller.signal })
       .then((res) => {
+        if (generation !== authGeneration) throw new axios.CanceledError('Authentication session changed');
         const currentUser = useAuthStore.getState().user;
         if (currentUser) {
           useAuthStore.getState().setAuth(currentUser, res.data.accessToken);
         }
         return res.data.accessToken;
-      })
-      .finally(() => {
-        refreshPromise = null;
       });
+    const pendingRefresh = request.finally(() => {
+      if (refreshPromise === pendingRefresh) refreshPromise = null;
+      if (refreshController === controller) refreshController = null;
+    });
+    refreshPromise = pendingRefresh;
   }
   return refreshPromise;
 }
@@ -57,6 +85,7 @@ apiClient.interceptors.response.use(
         const refreshStatus = (refreshError as AxiosError).response?.status;
         if (refreshStatus === 401 || refreshStatus === 403) {
           const hadUser = Boolean(useAuthStore.getState().user);
+          cancelPendingApiRequests();
           useAuthStore.getState().clearAuth();
           if (hadUser && typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('nearme:session-expired'));
         }

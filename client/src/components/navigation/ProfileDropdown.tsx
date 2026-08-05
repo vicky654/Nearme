@@ -5,6 +5,10 @@ import { logoutUser } from '../../api/authApi';
 import { toast } from '../../store/toastStore';
 import { unregisterPushToken } from '../../api/userApi';
 import { Capacitor } from '@capacitor/core';
+import { disconnectSocket } from '../../api/socket';
+import { useChatStore } from '../../store/chatStore';
+import { useNotificationStore } from '../../store/notificationStore';
+import { cancelPendingApiRequests } from '../../api/axiosClient';
 
 export function ProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -37,6 +41,10 @@ export function ProfileDropdown() {
     } catch {
       // Best effort
     } finally {
+      cancelPendingApiRequests();
+      disconnectSocket();
+      useChatStore.getState().reset();
+      useNotificationStore.getState().reset();
       clearAuth();
       toast.success('Logged out');
       navigate('/login');

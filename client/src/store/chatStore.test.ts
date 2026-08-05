@@ -72,4 +72,25 @@ describe('chatStore', () => {
     vi.advanceTimersByTime(4_501);
     expect(useChatStore.getState().typingMap['conversation-1']).toHaveLength(0);
   });
+
+  it('clears retained chat data and pending typing timers on reset', () => {
+    vi.useFakeTimers();
+    useChatStore.getState().setConversations(conversations);
+    useChatStore.getState().setMessages('conversation-1', [baseMessage]);
+    useChatStore.getState().setDraft('conversation-1', 'unfinished');
+    useChatStore.getState().setTyping('conversation-1', { userId: 'user-2', displayName: 'Bob' });
+
+    useChatStore.getState().reset();
+    vi.advanceTimersByTime(5_000);
+
+    expect(useChatStore.getState()).toMatchObject({
+      activeConversationId: null,
+      visibleConversationId: null,
+      conversations: [],
+      messagesMap: {},
+      typingMap: {},
+      drafts: {},
+    });
+    expect(vi.getTimerCount()).toBe(0);
+  });
 });

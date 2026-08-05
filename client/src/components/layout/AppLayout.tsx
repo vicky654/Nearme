@@ -1,7 +1,7 @@
 import { ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { IonContent, IonIcon, IonRefresher, IonRefresherContent } from '@ionic/react';
+import { IonApp, IonContent, IonIcon, IonRefresher, IonRefresherContent, setupIonicReact } from '@ionic/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { close, compassOutline, helpCircleOutline, lockClosedOutline, menu, peopleOutline, search, settingsOutline, bookmarkOutline, giftOutline, chevronForward, locationOutline } from 'ionicons/icons';
 import { VerifyEmailBanner } from '../auth/VerifyEmailBanner';
@@ -16,8 +16,12 @@ import { useNotificationStore } from '../../store/notificationStore';
 import { NetworkBanner } from '../ui/NetworkBanner';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useNativeAppLifecycle } from '../../hooks/useNativeAppLifecycle';
+import { hapticNotification } from '../../utils/hapticService';
+import { NotificationType as HapticNotificationType } from '@capacitor/haptics';
+import { toast } from '../../store/toastStore';
 
 const scrollPositions = new Map<string, number>();
+setupIonicReact({ mode: 'ios' });
 
 const titles: Record<string, string> = { '/dashboard': 'For you', '/nearby': 'Discover', '/chat': 'Messages', '/notifications': 'Activity', '/profile': 'Profile', '/friends': 'Friends', '/search': 'Search', '/settings': 'Settings' };
 const desktopNav: ReadonlyArray<readonly [string, string]> = [
@@ -41,6 +45,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const refreshing = useRef(false);
   const contentRef = useRef<HTMLIonContentElement>(null);
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
+  const closeSearch = useCallback(() => setIsSearchOpen(false), []);
   useNativeAppLifecycle(drawerOpen, closeDrawer);
 
   useEffect(() => {
@@ -58,7 +63,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   useEffect(() => {
     setDrawerOpen(false);
     const savedTop = scrollPositions.get(location.pathname) ?? 0;
-    requestAnimationFrame(() => { void contentRef.current?.scrollToPoint(0, savedTop, 0); });
+    const frame = requestAnimationFrame(() => { void contentRef.current?.scrollToPoint(0, savedTop, 0); });
+    return () => cancelAnimationFrame(frame);
   }, [location.pathname]);
 
   function handleScroll(event: CustomEvent<{ scrollTop: number }>) {
@@ -71,8 +77,17 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   async function handleRefresh(event: CustomEvent<{ complete: () => void }>) {
     if (refreshing.current) return event.detail.complete();
     refreshing.current = true;
-    try { await queryClient.invalidateQueries({ type: 'active', refetchType: 'active' }); }
-    finally { refreshing.current = false; event.detail.complete(); }
+    try {
+      await queryClient.invalidateQueries({ type: 'active', refetchType: 'active' });
+      hapticNotification(HapticNotificationType.Success, 'pull-to-refresh');
+    } catch {
+      toast.error('Refresh failed. Check your connection and try again.');
+      hapticNotification(HapticNotificationType.Error, 'pull-to-refresh');
+    }
+    finally {
+      refreshing.current = false;
+      event.detail.complete();
+    }
   }
 
   useEffect(() => {
@@ -86,6 +101,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const title = titles[location.pathname] ?? 'NearMe';
 
   return (
+    <IonApp>
     <div className="flex h-[100dvh] flex-col overflow-hidden bg-[rgb(var(--canvas))] text-ink dark:text-gray-100">
       <NetworkBanner isOnline={isOnline} />
       <motion.header initial={false} animate={{ y: chromeHidden ? -90 : 0, marginBottom: chromeHidden ? -64 : 0 }} className="relative z-40 shrink-0 border-b border-gray-200/60 bg-white/80 pt-[var(--sat)] backdrop-blur-2xl dark:border-gray-800 dark:bg-gray-950/80">
@@ -127,7 +143,8 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           </motion.aside>
         </>}
       </AnimatePresence>
-      <ActionToast /><WelcomeBackModal /><CommandPalette isOpen={isSearchOpen} onClose={() => setIsSearchOpen(false)} />
+      <ActionToast /><WelcomeBackModal /><CommandPalette isOpen={isSearchOpen} onClose={closeSearch} />
     </div>
+    </IonApp>
   );
 }

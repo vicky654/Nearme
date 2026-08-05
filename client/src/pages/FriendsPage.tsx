@@ -18,12 +18,12 @@ export default function FriendsPage() {
 
   const friendsQuery = useQuery({
     queryKey: ['friends'],
-    queryFn: getFriends,
+    queryFn: ({ signal }) => getFriends(signal),
   });
 
   const requestsQuery = useQuery({
     queryKey: ['friend-requests'],
-    queryFn: getFriendRequests,
+    queryFn: ({ signal }) => getFriendRequests(signal),
   });
 
   const acceptMutation = useMutation({

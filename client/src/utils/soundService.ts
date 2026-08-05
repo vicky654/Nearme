@@ -25,16 +25,29 @@ export function getSoundEnabled(): boolean {
 export function playNotificationSound(type: 'friend_request' | 'message' | 'outgoing' | 'delivered' | 'read') {
   if (!isSoundEnabled) return;
 
+  let ctx: AudioContext | undefined;
+  let osc: OscillatorNode | undefined;
+  let gain: GainNode | undefined;
+  let cleanupTimer: number | undefined;
+  const cleanup = () => {
+    if (cleanupTimer !== undefined) window.clearTimeout(cleanupTimer);
+    cleanupTimer = undefined;
+    try { osc?.disconnect(); } catch { /* The node may already be disconnected. */ }
+    try { gain?.disconnect(); } catch { /* The node may already be disconnected. */ }
+    if (ctx && ctx.state !== 'closed') void ctx.close().catch(() => undefined);
+  };
+
   try {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
 
-    const ctx = new AudioCtx();
+    ctx = new AudioCtx();
     const now = ctx.currentTime;
 
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.onended = () => { void ctx.close().catch(() => undefined); };
+    osc = ctx.createOscillator();
+    gain = ctx.createGain();
+    osc.onended = cleanup;
+    cleanupTimer = window.setTimeout(cleanup, 1_000);
 
     osc.type = 'sine';
 
@@ -75,6 +88,7 @@ export function playNotificationSound(type: 'friend_request' | 'message' | 'outg
       osc.stop(now + 0.25);
     }
   } catch {
+    cleanup();
     // Gracefully catch audio permission or autoplay restrictions
   }
 }

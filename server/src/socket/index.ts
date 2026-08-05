@@ -80,6 +80,7 @@ export function setupSocketIO(server: HttpServer): Server {
     const userId = socket.data.userId;
     let typingTimer: ReturnType<typeof setTimeout> | null = null;
     let recentMessageTimes: number[] = [];
+    let disconnected = false;
 
     let userSockets = onlineUsersMap.get(userId);
     if (!userSockets) {
@@ -92,15 +93,18 @@ export function setupSocketIO(server: HttpServer): Server {
     let friendIds: string[] = [];
     const initializePresence = async () => {
       await User.findByIdAndUpdate(userId, { lastSeenAt: new Date() });
+      if (disconnected || !socket.connected) return;
       const friendships = await Friendship.find({
         $or: [{ requesterId: userId }, { recipientId: userId }],
         status: 'accepted',
       });
-      friendIds = friendships.map((friendship) =>
+      if (disconnected || !socket.connected) return;
+      const resolvedFriendIds = friendships.map((friendship) =>
         friendship.requesterId.toString() === userId
           ? friendship.recipientId.toString()
           : friendship.requesterId.toString()
       );
+      friendIds = resolvedFriendIds;
 
       if (!socket.data.hideOnlineStatus) {
         friendIds.forEach((friendId) => {
@@ -110,6 +114,7 @@ export function setupSocketIO(server: HttpServer): Server {
 
       const visibleFriends = await User.find({ _id: { $in: friendIds }, 'privacy.hideOnlineStatus': { $ne: true } })
         .select('_id lastSeenAt');
+      if (disconnected || !socket.connected) return;
       socket.emit('presence:snapshot', {
         users: visibleFriends.map((friend) => ({
           userId: friend._id.toString(),
@@ -119,6 +124,7 @@ export function setupSocketIO(server: HttpServer): Server {
       });
 
       const conversations = await Conversation.find({ participants: userId }).select('_id participants');
+      if (disconnected || !socket.connected) return;
       await Promise.all(conversations.map(async (conversation) => {
         const result = await Message.updateMany(
           { conversationId: conversation._id, senderId: { $ne: userId }, status: 'sent' },
@@ -145,37 +151,46 @@ export function setupSocketIO(server: HttpServer): Server {
     };
 
     socket.on('presence:get', async () => {
-      const relationships = await Friendship.find({
-        $or: [{ requesterId: userId }, { recipientId: userId }],
-        status: 'accepted',
-      });
-      const ids = relationships.map((friendship) =>
-        friendship.requesterId.toString() === userId
-          ? friendship.recipientId.toString()
-          : friendship.requesterId.toString()
-      );
-      const friends = await User.find({ _id: { $in: ids }, 'privacy.hideOnlineStatus': { $ne: true } }).select('_id lastSeenAt');
-      socket.emit('presence:snapshot', {
-        users: friends.map((friend) => ({
-          userId: friend._id.toString(),
-          isOnline: isUserOnline(friend._id.toString()),
-          lastSeenAt: friend.lastSeenAt,
-        })),
-      });
+      try {
+        const relationships = await Friendship.find({
+          $or: [{ requesterId: userId }, { recipientId: userId }],
+          status: 'accepted',
+        });
+        const ids = relationships.map((friendship) =>
+          friendship.requesterId.toString() === userId
+            ? friendship.recipientId.toString()
+            : friendship.requesterId.toString()
+        );
+        const friends = await User.find({ _id: { $in: ids }, 'privacy.hideOnlineStatus': { $ne: true } }).select('_id lastSeenAt');
+        if (disconnected || !socket.connected) return;
+        socket.emit('presence:snapshot', {
+          users: friends.map((friend) => ({
+            userId: friend._id.toString(),
+            isOnline: isUserOnline(friend._id.toString()),
+            lastSeenAt: friend.lastSeenAt,
+          })),
+        });
+      } catch {
+        // Presence is best effort and will be refreshed on the next reconnect.
+      }
     });
 
     socket.on('chat:join', async (conversationId: string, ack?: (response: { success: boolean }) => void) => {
-      if (!conversationId) return ack?.({ success: false });
-      const conversation = await Conversation.findOne({ _id: conversationId, participants: userId }).select('_id');
-      if (!conversation) return ack?.({ success: false });
+      try {
+        if (!conversationId) return ack?.({ success: false });
+        const conversation = await Conversation.findOne({ _id: conversationId, participants: userId }).select('_id');
+        if (!conversation || disconnected || !socket.connected) return ack?.({ success: false });
 
-      if (socket.data.activeConversationId && socket.data.activeConversationId !== conversationId) {
-        stopTyping();
-        socket.leave(`chat:${socket.data.activeConversationId}`);
+        if (socket.data.activeConversationId && socket.data.activeConversationId !== conversationId) {
+          stopTyping();
+          socket.leave(`chat:${socket.data.activeConversationId}`);
+        }
+        socket.data.activeConversationId = conversationId;
+        socket.join(`chat:${conversationId}`);
+        ack?.({ success: true });
+      } catch {
+        ack?.({ success: false });
       }
-      socket.data.activeConversationId = conversationId;
-      socket.join(`chat:${conversationId}`);
-      ack?.({ success: true });
     });
 
     socket.on('chat:leave', (conversationId: string, ack?: (response: { success: boolean }) => void) => {
@@ -379,6 +394,7 @@ export function setupSocketIO(server: HttpServer): Server {
     void initializePresence().catch(() => undefined);
 
     socket.on('disconnect', async () => {
+      disconnected = true;
       stopTyping();
       const sockets = onlineUsersMap.get(userId);
       if (!sockets) return;
@@ -387,7 +403,11 @@ export function setupSocketIO(server: HttpServer): Server {
 
       onlineUsersMap.delete(userId);
       const lastSeenAt = new Date();
-      await User.findByIdAndUpdate(userId, { lastSeenAt });
+      try {
+        await User.findByIdAndUpdate(userId, { lastSeenAt });
+      } catch {
+        // A later connection reconciles lastSeenAt; never leave a rejected listener promise.
+      }
       if (!socket.data.hideOnlineStatus) {
         friendIds.forEach((friendId) => {
           io.to(`user:${friendId}`).emit('presence:update', { userId, isOnline: false, lastSeenAt });

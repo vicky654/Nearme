@@ -31,7 +31,7 @@ export default function ProfilePage() {
   const setAuth = useAuthStore((state) => state.setAuth);
   const accessToken = useAuthStore((state) => state.accessToken);
 
-  const query = useQuery({ queryKey: ['me'], queryFn: getMe, retry: false });
+  const query = useQuery({ queryKey: ['me'], queryFn: ({ signal }) => getMe(signal), retry: false });
 
   const {
     register,

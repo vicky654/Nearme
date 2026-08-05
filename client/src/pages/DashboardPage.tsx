@@ -15,9 +15,9 @@ const fade = { initial: { opacity: 0, y: 12 }, animate: { opacity: 1, y: 0 } };
 export default function DashboardPage() {
   const user = useAuthStore((state) => state.user);
   const navigate = useNavigate();
-  const nearbyQuery = useQuery({ queryKey: ['nearby-preview'], queryFn: () => getNearbyUsers(20) });
-  const requestsQuery = useQuery({ queryKey: ['friend-requests-preview'], queryFn: getFriendRequests });
-  const chatsQuery = useQuery({ queryKey: ['conversations-preview'], queryFn: getConversations });
+  const nearbyQuery = useQuery({ queryKey: ['nearby-preview'], queryFn: ({ signal }) => getNearbyUsers(20, signal) });
+  const requestsQuery = useQuery({ queryKey: ['friend-requests-preview'], queryFn: ({ signal }) => getFriendRequests(signal) });
+  const chatsQuery = useQuery({ queryKey: ['conversations-preview'], queryFn: ({ signal }) => getConversations(signal) });
   const nearby = nearbyQuery.data?.users.slice(0, 6) ?? [];
   const requests = requestsQuery.data?.incoming.slice(0, 3) ?? [];
   const chats = chatsQuery.data?.conversations.slice(0, 4) ?? [];
