@@ -1,0 +1,21 @@
+# Vercel must never upload or process the backend
+server/
+server/node_modules/
+server/dist/
+server/src/
+server/.env
+server/tsconfig.json
+server/tsconfig.test.json
+server/vitest.config.ts
+
+# Root workspace tooling not needed by Vercel
+node_modules/
+docker-compose.yml
+docs/
+README.md
+
+# Client artifacts that Vercel re-generates itself
+client/node_modules/
+client/dist/
+client/.env
+client/tsconfig.tsbuildinfo
