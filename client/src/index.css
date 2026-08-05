@@ -28,6 +28,9 @@ html { background: rgb(var(--canvas)); height: 100%; }
    class is used on the app chrome, so it must not stay hard-coded to light
    text when the canvas switches to dark mode. */
 .text-ink { color: rgb(var(--text)); }
+[data-theme='dark'] .dashboard-page h2,
+[data-theme='dark'] .dashboard-page h3,
+[data-theme='dark'] .dashboard-page .app-card strong { color: #fff !important; }
 
 body {
   @apply m-0 bg-gray-50 font-sans text-gray-900 antialiased dark:bg-gray-950 dark:text-gray-100;

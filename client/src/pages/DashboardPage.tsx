@@ -24,7 +24,7 @@ export default function DashboardPage() {
   const firstName = user?.displayName?.split(' ')[0] ?? 'Explorer';
 
   return (
-    <div className="page-shell space-y-7">
+    <div className="dashboard-page page-shell space-y-7">
       <motion.section {...fade} className="relative overflow-hidden rounded-[2rem] bg-[#20264c] p-5 text-white shadow-[0_24px_55px_-25px_rgba(40,48,105,.75)] sm:p-8">
         <div className="absolute -right-16 -top-20 h-64 w-64 rounded-full bg-brand-500/40 blur-2xl" /><div className="absolute -bottom-24 left-1/3 h-52 w-52 rounded-full bg-fuchsia-500/20 blur-3xl" />
         <div className="relative z-10 max-w-xl">
@@ -40,14 +40,14 @@ export default function DashboardPage() {
       </motion.section>
 
       <section aria-label={`Good afternoon, ${firstName}`}>
-        <div className="mb-3 flex items-end justify-between"><div><p className="eyebrow">Live snapshot</p><h2 className="mt-1 text-xl font-extrabold tracking-tight">Your neighborhood</h2></div><span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Live</span></div>
+        <div className="mb-3 flex items-end justify-between"><div><p className="eyebrow">Live snapshot</p><h2 className="mt-1 text-xl font-extrabold tracking-tight text-gray-900 dark:text-white">Your neighborhood</h2></div><span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-600"><span className="h-2 w-2 rounded-full bg-emerald-500" /> Live</span></div>
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           {[
             [location, nearbyQuery.data?.users.length ?? 0, 'people nearby', 'bg-brand-50 text-brand-600 dark:bg-brand-500/10'],
             [personAdd, requestsQuery.data?.incoming.length ?? 0, 'new requests', 'bg-rose-50 text-rose-500 dark:bg-rose-500/10'],
             [chatbubbleEllipses, chatsQuery.data?.conversations.length ?? 0, 'active chats', 'bg-emerald-50 text-emerald-600 dark:bg-emerald-500/10'],
             [flash, 'Online', 'ready to connect', 'bg-amber-50 text-amber-600 dark:bg-amber-500/10'],
-          ].map(([icon, value, label, tone]) => <motion.div whileHover={{ y: -3 }} key={String(label)} className="app-card flex items-center gap-3 p-4"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${tone}`}><IonIcon icon={String(icon)} className="text-xl" /></span><div><strong className="block text-lg font-extrabold leading-none">{value}</strong><span className="mt-1 block text-[11px] font-medium text-gray-400">{label}</span></div></motion.div>)}
+          ].map(([icon, value, label, tone]) => <motion.div whileHover={{ y: -3 }} key={String(label)} className="app-card flex items-center gap-3 p-4"><span className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${tone}`}><IonIcon icon={String(icon)} className="text-xl" /></span><div><strong className="block text-lg font-extrabold leading-none text-gray-900 dark:text-white">{value}</strong><span className="mt-1 block text-[11px] font-medium text-gray-400">{label}</span></div></motion.div>)}
         </div>
       </section>
 
@@ -70,5 +70,5 @@ export default function DashboardPage() {
   );
 }
 
-function SectionTitle({ eyebrow, title, to }: { eyebrow: string; title: string; to: string }) { return <div className="mb-3 flex items-end justify-between"><div><p className="eyebrow">{eyebrow}</p><h2 className="mt-1 text-xl font-extrabold tracking-tight">{title}</h2></div><Link to={to} className="flex items-center gap-1 text-xs font-bold text-brand-600">See all <IonIcon icon={arrowForward} /></Link></div>; }
+function SectionTitle({ eyebrow, title, to }: { eyebrow: string; title: string; to: string }) { return <div className="mb-3 flex items-end justify-between"><div><p className="eyebrow">{eyebrow}</p><h2 className="mt-1 text-xl font-extrabold tracking-tight text-gray-900 dark:text-white">{title}</h2></div><Link to={to} className="flex items-center gap-1 text-xs font-bold text-brand-600">See all <IonIcon icon={arrowForward} /></Link></div>; }
 function CompactEmpty({ text }: { text: string }) { return <div className="px-5 py-9 text-center"><span className="mx-auto mb-2 grid h-10 w-10 place-items-center rounded-2xl bg-gray-100 text-gray-400 dark:bg-gray-800">✦</span><p className="text-xs leading-5 text-gray-400">{text}</p></div>; }
