@@ -94,6 +94,19 @@ export const updateSettings: RequestHandler = asyncHandler(async (req, res) => {
   res.status(200).json({ theme: user.theme, privacy: user.privacy });
 });
 
+export const registerPushToken: RequestHandler = asyncHandler(async (req, res) => {
+  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+  if (token.length < 20 || token.length > 4096) throw new AppError(400, 'Invalid push token');
+  await User.updateOne({ _id: req.userId }, { $addToSet: { pushTokens: token } });
+  res.status(204).send();
+});
+
+export const unregisterPushToken: RequestHandler = asyncHandler(async (req, res) => {
+  const token = typeof req.body?.token === 'string' ? req.body.token.trim() : '';
+  if (token) await User.updateOne({ _id: req.userId }, { $pull: { pushTokens: token } });
+  res.status(204).send();
+});
+
 export const updateLocation: RequestHandler = asyncHandler(async (req, res) => {
   const user = await requireUser(req.userId);
   const { latitude, longitude } = req.body as { latitude: number; longitude: number };

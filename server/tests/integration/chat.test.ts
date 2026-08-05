@@ -7,6 +7,9 @@ import Conversation from '../../src/models/Conversation';
 import Message from '../../src/models/Message';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/testDb';
 import { signAccessToken } from '../../src/services/tokenService';
+import { unlink } from 'fs/promises';
+import path from 'path';
+import { chatUploadDirectory } from '../../src/middleware/chatUpload';
 
 describe('Chat API', () => {
   let userA: any;
@@ -68,6 +71,26 @@ describe('Chat API', () => {
 
     expect(convRes.status).toBe(201);
     const convId = convRes.body.conversation._id;
+
+    const outsider = await User.create({
+      username: 'charlie',
+      displayName: 'Charlie',
+      email: 'charlie@example.com',
+      avatarUrl: 'https://example.com/charlie.png',
+    });
+    const outsiderToken = signAccessToken(outsider._id.toString());
+    const unauthorizedRead = await request(app)
+      .post(`/api/v1/chats/${convId}/read`)
+      .set('Authorization', `Bearer ${outsiderToken}`);
+    expect(unauthorizedRead.status).toBe(404);
+
+    const uploadRes = await request(app)
+      .post(`/api/v1/chats/${convId}/attachments`)
+      .set('Authorization', `Bearer ${tokenA}`)
+      .attach('attachment', Buffer.from([0xff, 0xd8, 0xff, 0xd9]), { filename: 'photo.jpg', contentType: 'image/jpeg' });
+    expect(uploadRes.status).toBe(201);
+    expect(uploadRes.body.attachment).toEqual(expect.objectContaining({ type: 'image', name: 'photo.jpg' }));
+    await unlink(path.join(chatUploadDirectory, path.basename(uploadRes.body.attachment.url)));
 
     // Send message
     const msgRes = await request(app)

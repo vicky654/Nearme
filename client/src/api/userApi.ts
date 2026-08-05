@@ -51,3 +51,11 @@ export async function updateSettings(input: UpdateSettingsInput): Promise<Settin
   const res = await apiClient.patch<SettingsPayload>('/users/me/settings', input);
   return res.data;
 }
+
+export async function registerPushToken(token: string): Promise<void> {
+  await apiClient.put('/users/me/push-token', { token });
+}
+
+export async function unregisterPushToken(token: string): Promise<void> {
+  await apiClient.delete('/users/me/push-token', { data: { token } });
+}

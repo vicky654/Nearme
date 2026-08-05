@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll, afterEach, vi } from 'vitest';
 import request from 'supertest';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/testDb';
+import User from '../../src/models/User';
 
 vi.mock('../../src/services/emailService', () => ({
   sendVerificationEmail: vi.fn().mockResolvedValue(undefined),
@@ -63,6 +64,31 @@ describe('/api/v1/users/me', () => {
     expect(res.status).toBe(200);
     expect(res.body.user.bio).toBe('Hello world');
     expect(res.body.user.interests).toEqual(['hiking', 'chess']);
+  });
+
+  it('registers and removes a native push token without exposing it in the profile', async () => {
+    const app = (await import('../../src/app')).default;
+    const accessToken = await registerAndLogin(app);
+    const token = 'native-registration-token-1234567890';
+
+    const registerRes = await request(app)
+      .put('/api/v1/users/me/push-token')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ token });
+    expect(registerRes.status).toBe(204);
+    const userWithToken = await User.findOne({ email: 'nina@example.com' }).select('+pushTokens');
+    expect(userWithToken?.pushTokens).toContain(token);
+
+    const profileRes = await request(app).get('/api/v1/users/me').set('Authorization', `Bearer ${accessToken}`);
+    expect(profileRes.body.user.pushTokens).toBeUndefined();
+
+    const removeRes = await request(app)
+      .delete('/api/v1/users/me/push-token')
+      .set('Authorization', `Bearer ${accessToken}`)
+      .send({ token });
+    expect(removeRes.status).toBe(204);
+    const userWithoutToken = await User.findOne({ email: 'nina@example.com' }).select('+pushTokens');
+    expect(userWithoutToken?.pushTokens).not.toContain(token);
   });
 
   it('changes the password given the correct current password', async () => {

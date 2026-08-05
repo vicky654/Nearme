@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import { logoutUser } from '../../api/authApi';
 import { toast } from '../../store/toastStore';
+import { unregisterPushToken } from '../../api/userApi';
+import { Capacitor } from '@capacitor/core';
 
 export function ProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -24,6 +26,13 @@ export function ProfileDropdown() {
 
   async function handleLogout() {
     try {
+      const pushToken = import.meta.env.MODE !== 'test' && Capacitor.isNativePlatform()
+        ? localStorage.getItem('nearme.push-token')
+        : null;
+      if (pushToken) {
+        await unregisterPushToken(pushToken).catch(() => undefined);
+        localStorage.removeItem('nearme.push-token');
+      }
       await logoutUser();
     } catch {
       // Best effort

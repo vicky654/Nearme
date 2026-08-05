@@ -40,6 +40,7 @@ export interface IUser extends Document {
   status: UserStatus;
   createdAt: Date;
   passwordChangedAt: Date | null;
+  pushTokens: string[];
 }
 
 const privacySchema = new Schema<IPrivacySettings>(
@@ -79,6 +80,7 @@ const userSchema = new Schema<IUser>({
   status: { type: String, enum: ['active', 'suspended', 'banned'], default: 'active' },
   createdAt: { type: Date, default: () => new Date() },
   passwordChangedAt: { type: Date, default: null },
+  pushTokens: { type: [String], default: [], select: false },
 });
 
 userSchema.index({ location: '2dsphere' });

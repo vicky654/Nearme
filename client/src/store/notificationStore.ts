@@ -4,10 +4,27 @@ import { playNotificationSound, getSoundEnabled, setSoundEnabled } from '../util
 import { showBrowserNotification } from '../utils/browserNotificationService';
 import { connectSocket } from '../api/socket';
 import { getFriendlyApiError } from '../api/errors';
+import { useChatStore } from './chatStore';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, NotificationType as HapticNotificationType } from '@capacitor/haptics';
 
 export interface ActionToastData {
   id: string;
   notification: AppNotification;
+}
+
+function groupNotifications(notifications: AppNotification[]) {
+  const startToday = new Date();
+  startToday.setHours(0, 0, 0, 0);
+  const startYesterday = new Date(startToday);
+  startYesterday.setDate(startYesterday.getDate() - 1);
+  return notifications.reduce<NotificationStore['grouped']>((groups, notification) => {
+    const createdAt = new Date(notification.createdAt);
+    if (createdAt >= startToday) groups.today.push(notification);
+    else if (createdAt >= startYesterday) groups.yesterday.push(notification);
+    else groups.earlier.push(notification);
+    return groups;
+  }, { today: [], yesterday: [], earlier: [] });
 }
 
 interface NotificationStore {
@@ -86,10 +103,10 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   markAsRead: async (id: string) => {
     try {
       await markNotificationAsRead(id);
+      const wasUnread = get().notifications.some((notification) => notification._id === id && !notification.isRead);
       const notifications = get().notifications.map((n) => (n._id === id ? { ...n, isRead: true } : n));
-      const unreadCount = Math.max(0, get().unreadCount - 1);
-      set({ notifications, unreadCount });
-      get().fetchNotifications();
+      const unreadCount = Math.max(0, get().unreadCount - (wasUnread ? 1 : 0));
+      set({ notifications, unreadCount, grouped: groupNotifications(notifications) });
     } catch {
       // Best effort
     }
@@ -99,8 +116,7 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     try {
       await markAllNotificationsAsRead();
       const notifications = get().notifications.map((n) => ({ ...n, isRead: true }));
-      set({ notifications, unreadCount: 0 });
-      get().fetchNotifications();
+      set({ notifications, unreadCount: 0, grouped: groupNotifications(notifications) });
     } catch {
       // Best effort
     }
@@ -109,9 +125,13 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
   removeNotification: async (id: string) => {
     try {
       await deleteNotification(id);
+      const removed = get().notifications.find((notification) => notification._id === id);
       const notifications = get().notifications.filter((n) => n._id !== id);
-      set({ notifications });
-      get().fetchNotifications();
+      set({
+        notifications,
+        unreadCount: Math.max(0, get().unreadCount - (removed && !removed.isRead ? 1 : 0)),
+        grouped: groupNotifications(notifications),
+      });
     } catch {
       // Best effort
     }
@@ -131,34 +151,56 @@ export const useNotificationStore = create<NotificationStore>((set, get) => ({
     const socket = connectSocket();
 
     const handleNewNotif = ({ notification }: { notification: AppNotification }) => {
-      // 1. Update state
-      set((state) => ({
-        notifications: [notification, ...state.notifications],
-        unreadCount: state.unreadCount + 1,
-        activeToast: { id: `toast-${Date.now()}`, notification },
-      }));
+      const chatState = useChatStore.getState();
+      const isVisibleConversation = notification.type === 'new_message'
+        && notification.relatedId === chatState.visibleConversationId
+        && document.visibilityState !== 'hidden';
 
-      // 2. Play sound
-      if (notification.type === 'new_message') {
+      if (isVisibleConversation) {
+        void markNotificationAsRead(notification._id).catch(() => undefined);
+        return;
+      }
+
+      const existing = get().notifications.some((candidate) => candidate._id === notification._id);
+      if (!existing) {
+        set((state) => {
+          const notifications = [notification, ...state.notifications];
+          return {
+            notifications,
+            grouped: groupNotifications(notifications),
+            unreadCount: state.unreadCount + 1,
+            activeToast: { id: `toast-${notification._id}`, notification },
+          };
+        });
+      }
+
+      const conversation = notification.relatedId
+        ? chatState.conversations.find((candidate) => candidate._id === notification.relatedId)
+        : undefined;
+      const shouldAlert = !conversation?.isMuted;
+
+      if (shouldAlert && notification.type === 'new_message') {
         playNotificationSound('message');
-      } else {
+        if (Capacitor.isNativePlatform()) {
+          void Haptics.notification({ type: HapticNotificationType.Success }).catch(() => undefined);
+        }
+      } else if (shouldAlert) {
         playNotificationSound('friend_request');
       }
 
-      // 3. Desktop Browser Notification
-      showBrowserNotification(notification.title, {
-        body: notification.message,
-        icon: notification.senderId?.avatarUrl,
-        onClick: () => {
-          if (notification.type === 'new_message' && notification.relatedId) {
-            onNavigate('/chat', { conversationId: notification.relatedId });
-          } else if (notification.type === 'friend_request_received') {
-            onNavigate('/friends');
+      if (shouldAlert && document.visibilityState === 'hidden') {
+        showBrowserNotification(notification.title, {
+          body: notification.message,
+          icon: notification.senderId?.avatarUrl,
+          onClick: () => {
+            if (notification.type === 'new_message' && notification.relatedId) {
+              onNavigate('/chat', { conversationId: notification.relatedId });
+            } else if (notification.type === 'friend_request_received') {
+              onNavigate('/friends');
+            }
           }
-        },
-      });
-
-      get().fetchNotifications();
+        });
+      }
     };
 
     socket.on('notification:new', handleNewNotif);

@@ -12,6 +12,9 @@ export const envSchema = z.object({
   EMAIL_FROM: z.string().min(1, 'EMAIL_FROM is required'),
   CLIENT_URL: z.string().url(),
   GOOGLE_CLIENT_ID: z.string().optional(),
+  CHAT_UPLOAD_DIR: z.string().optional(),
+  PUBLIC_SERVER_URL: z.string().url().optional(),
+  FCM_PROJECT_ID: z.string().min(1).optional(),
 });
 
 export const env = envSchema.parse(process.env);

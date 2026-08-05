@@ -11,7 +11,9 @@ import {
   toggleMute,
   toggleArchive,
   deleteConversation,
+  uploadAttachment,
 } from '../controllers/chatController';
+import { uploadChatAttachment } from '../middleware/chatUpload';
 
 const router = Router();
 
@@ -21,6 +23,7 @@ router.get('/', getConversations);
 router.post('/', createOrGetConversation);
 
 router.get('/:conversationId/messages', getMessages);
+router.post('/:conversationId/attachments', uploadChatAttachment.single('attachment'), uploadAttachment);
 router.post('/:conversationId/messages', sendMessage);
 router.patch('/:conversationId/messages/:messageId', editMessage);
 router.delete('/:conversationId/messages/:messageId', deleteMessage);

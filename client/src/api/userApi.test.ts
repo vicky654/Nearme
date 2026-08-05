@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import MockAdapter from 'axios-mock-adapter';
 import { apiClient } from './axiosClient';
-import { getMe, updateMe, changePassword, getSettings, updateSettings } from './userApi';
+import { getMe, updateMe, changePassword, getSettings, updateSettings, registerPushToken, unregisterPushToken } from './userApi';
 
 describe('userApi', () => {
   let mock: MockAdapter;
@@ -56,5 +56,15 @@ describe('userApi', () => {
       .reply(200, { theme: 'system', privacy: { invisibleMode: true } });
     const result = await updateSettings({ privacy: { invisibleMode: true } });
     expect(result.privacy.invisibleMode).toBe(true);
+  });
+
+  it('registers a native push token', async () => {
+    mock.onPut('/users/me/push-token', { token: 'device-token' }).reply(204);
+    await expect(registerPushToken('device-token')).resolves.toBeUndefined();
+  });
+
+  it('removes a native push token', async () => {
+    mock.onDelete('/users/me/push-token', { data: { token: 'device-token' } }).reply(204);
+    await expect(unregisterPushToken('device-token')).resolves.toBeUndefined();
   });
 });

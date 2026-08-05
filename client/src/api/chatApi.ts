@@ -3,15 +3,27 @@ import type { User } from '../types/user';
 
 export interface ChatMessage {
   _id: string;
+  clientId?: string;
   conversationId: string;
   senderId: User | string;
   content: string;
-  status: 'sent' | 'delivered' | 'seen';
+  status: 'sending' | 'failed' | 'sent' | 'delivered' | 'seen';
   readBy: string[];
+  replyTo?: Pick<ChatMessage, '_id' | 'senderId' | 'content' | 'deletedAt'> | string;
+  reactions?: Array<{ emoji: string; userId: string }>;
+  attachments?: ChatAttachment[];
   editedAt?: string;
   deletedAt?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ChatAttachment {
+  type: 'image' | 'audio' | 'file';
+  url: string;
+  name: string;
+  mimeType: string;
+  size: number;
 }
 
 export interface ConversationItem {
@@ -46,8 +58,32 @@ export async function getMessages(
   return response.data;
 }
 
-export async function sendMessage(conversationId: string, content: string): Promise<{ message: ChatMessage }> {
-  const response = await apiClient.post<{ message: ChatMessage }>(`/chats/${conversationId}/messages`, { content });
+export async function sendMessage(
+  conversationId: string,
+  content: string,
+  options?: { clientId?: string; replyToId?: string; attachments?: ChatAttachment[] }
+): Promise<{ message: ChatMessage }> {
+  const response = await apiClient.post<{ message: ChatMessage }>(`/chats/${conversationId}/messages`, {
+    content,
+    ...options,
+  });
+  return response.data;
+}
+
+export async function uploadChatAttachment(
+  conversationId: string,
+  file: File,
+  onProgress?: (progress: number) => void
+): Promise<{ attachment: ChatAttachment }> {
+  const data = new FormData();
+  data.append('attachment', file);
+  const response = await apiClient.post<{ attachment: ChatAttachment }>(`/chats/${conversationId}/attachments`, data, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    timeout: 30_000,
+    onUploadProgress: (event) => {
+      if (event.total) onProgress?.(Math.round((event.loaded / event.total) * 100));
+    },
+  });
   return response.data;
 }
 

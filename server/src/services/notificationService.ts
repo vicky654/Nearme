@@ -1,6 +1,7 @@
 import { Types } from 'mongoose';
 import Notification, { NotificationType } from '../models/Notification';
 import { getIO } from '../socket';
+import { sendPushNotification } from './pushService';
 
 export interface CreateNotificationParams {
   receiverId: string | Types.ObjectId;
@@ -42,6 +43,16 @@ export async function createAndEmitNotification(params: CreateNotificationParams
       notification,
     });
   }
+
+  void sendPushNotification(receiverId.toString(), {
+    title,
+    body: message,
+    data: {
+      type,
+      conversationId: type === 'new_message' ? relatedId : undefined,
+      path: type === 'new_message' && relatedId ? '/chat' : type === 'friend_request_received' ? '/friends' : '/notifications',
+    },
+  }).catch(() => undefined);
 
   return notification;
 }

@@ -1,66 +1,104 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query';
-import { getConversations, getMessages, editMessage, deleteMessage, markAsRead, toggleMute, toggleArchive, deleteConversation, ChatMessage } from '../api/chatApi';
+import { Capacitor } from '@capacitor/core';
+import { Haptics, ImpactStyle } from '@capacitor/haptics';
+import {
+  getConversations,
+  getMessages,
+  editMessage,
+  deleteMessage,
+  markAsRead,
+  toggleMute,
+  toggleArchive,
+  deleteConversation,
+  type ChatMessage,
+  type ChatAttachment,
+} from '../api/chatApi';
 import { blockUser, reportUser } from '../api/friendApi';
 import { connectSocket } from '../api/socket';
 import { useAuthStore } from '../store/authStore';
-import { useChatStore } from '../store/chatStore';
+import { useChatStore, type TypingUser } from '../store/chatStore';
 import { getUserId } from '../types/user';
 import { ConversationList } from '../components/chat/ConversationList';
 import { ChatWindow } from '../components/chat/ChatWindow';
 import { EmptyState } from '../components/ui/EmptyState';
 import { toast } from '../store/toastStore';
 import { getFriendlyApiError } from '../api/errors';
+import { playNotificationSound } from '../utils/soundService';
+
+interface ConversationUpdate {
+  conversationId: string;
+  message: ChatMessage;
+  unreadDelta?: number;
+}
+
+function impact(style: ImpactStyle) {
+  if (Capacitor.isNativePlatform()) void Haptics.impact({ style }).catch(() => undefined);
+}
 
 export default function ChatPage() {
   const location = useLocation();
   const currentUser = useAuthStore((state) => state.user);
+  const currentUserId = currentUser ? getUserId(currentUser) : '';
   const queryClient = useQueryClient();
+  const incomingQueue = useRef<Array<{ conversationId: string; message: ChatMessage }>>([]);
+  const queueFrame = useRef<number | null>(null);
 
   const {
     activeConversationId,
+    visibleConversationId,
     setActiveConversationId,
+    setVisibleConversationId,
     conversations,
     setConversations,
     updateConversation,
+    updateConversationFromMessage,
     messagesMap,
     setMessages,
     addMessage,
+    addMessages,
+    reconcileMessage,
     updateMessage,
+    updateMessagesStatus,
     deleteMessageInStore,
-    removeMessage,
     typingMap,
     setTyping,
     removeTyping,
     onlineUsers,
-    setUserOnline,
+    lastSeenMap,
+    setUserPresence,
+    drafts,
+    setDraft,
   } = useChatStore();
 
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>(activeConversationId ? 'chat' : 'list');
+  const [isPageVisible, setIsPageVisible] = useState(() => document.visibilityState !== 'hidden');
 
-  // Check state navigation (e.g. from NearbyPage or FriendsPage)
+  useEffect(() => {
+    const handleVisibility = () => setIsPageVisible(document.visibilityState !== 'hidden');
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
+
   useEffect(() => {
     const navState = location.state as { conversationId?: string } | null;
-    if (navState?.conversationId) {
-      setActiveConversationId(navState.conversationId);
-      setMobileView('chat');
-    }
+    if (!navState?.conversationId) return;
+    setActiveConversationId(navState.conversationId);
+    setMobileView('chat');
   }, [location.state, setActiveConversationId]);
 
-  // Fetch Conversations
-  const convQuery = useQuery({
-    queryKey: ['conversations'],
-    queryFn: getConversations,
-  });
+  useEffect(() => {
+    setVisibleConversationId(mobileView === 'chat' && isPageVisible ? activeConversationId : null);
+    return () => setVisibleConversationId(null);
+  }, [activeConversationId, isPageVisible, mobileView, setVisibleConversationId]);
+
+  const convQuery = useQuery({ queryKey: ['conversations'], queryFn: getConversations });
 
   useEffect(() => {
-    if (convQuery.data?.conversations) {
-      setConversations(convQuery.data.conversations);
-    }
+    if (convQuery.data?.conversations) setConversations(convQuery.data.conversations);
   }, [convQuery.data, setConversations]);
 
-  // Active Conversation Messages Query
   const messagesQuery = useInfiniteQuery({
     queryKey: ['messages', activeConversationId],
     queryFn: ({ pageParam }) => getMessages(activeConversationId!, pageParam),
@@ -70,123 +108,214 @@ export default function ChatPage() {
   });
 
   useEffect(() => {
-    if (activeConversationId && messagesQuery.data?.pages) {
-      const fetched = [...messagesQuery.data.pages].reverse().flatMap((page) => page.messages);
-      const existing = useChatStore.getState().messagesMap[activeConversationId] || [];
-      const unique = new Map([...fetched, ...existing].map((message) => [message._id, message]));
-      setMessages(activeConversationId, [...unique.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()));
-      void markAsRead(activeConversationId).catch(() => undefined);
-    }
+    if (!activeConversationId || !messagesQuery.data?.pages) return;
+    const fetched = [...messagesQuery.data.pages].reverse().flatMap((page) => page.messages);
+    const existing = useChatStore.getState().messagesMap[activeConversationId] || [];
+    const unique = new Map([...fetched, ...existing].map((message) => [message._id, message]));
+    setMessages(
+      activeConversationId,
+      [...unique.values()].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
+    );
   }, [activeConversationId, messagesQuery.data, setMessages]);
 
-  // Socket.IO Setup & Event Listeners
+  const activeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
+  const lastIncomingId = [...activeMessages].reverse().find((message) => {
+    const senderId = typeof message.senderId === 'string' ? message.senderId : getUserId(message.senderId);
+    return senderId !== currentUserId;
+  })?._id;
+
+  useEffect(() => {
+    if (!visibleConversationId || visibleConversationId !== activeConversationId) return;
+    updateConversation(visibleConversationId, { unreadCount: 0 });
+    const socket = connectSocket();
+    socket.emit('message:read', { conversationId: visibleConversationId });
+    void markAsRead(visibleConversationId).catch(() => undefined);
+  }, [activeConversationId, currentUserId, lastIncomingId, updateConversation, visibleConversationId]);
+
   useEffect(() => {
     const socket = connectSocket();
 
-    socket.on('presence:update', ({ userId, isOnline }: { userId: string; isOnline: boolean }) => {
-      setUserOnline(userId, isOnline);
-    });
-
-    socket.on('message:new', ({ message, conversationId }: { message: ChatMessage; conversationId: string }) => {
-      addMessage(conversationId, message);
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
-    });
-
-    socket.on('message:status_update', ({ conversationId }: { conversationId: string }) => {
-      queryClient.invalidateQueries({ queryKey: ['messages', conversationId] });
-    });
-
-    socket.on('typing:user_start', ({ conversationId, userId, displayName }: { conversationId: string; userId: string; displayName: string }) => {
-      setTyping(conversationId, { userId, displayName });
-    });
-
-    socket.on('typing:user_stop', ({ conversationId, userId }: { conversationId: string; userId: string }) => {
-      removeTyping(conversationId, userId);
-    });
-
-    return () => {
-      socket.off('presence:update');
-      socket.off('message:new');
-      socket.off('message:status_update');
-      socket.off('typing:user_start');
-      socket.off('typing:user_stop');
+    const handlePresence = ({ userId, isOnline, lastSeenAt }: { userId: string; isOnline: boolean; lastSeenAt?: string }) => {
+      setUserPresence(userId, isOnline, lastSeenAt);
     };
-  }, [addMessage, queryClient, removeTyping, setTyping, setUserOnline]);
-
-  // Join/leave socket room on active conversation change
-  useEffect(() => {
-    const socket = connectSocket();
-    if (activeConversationId) {
-      socket.emit('chat:join', activeConversationId);
-    }
-    return () => {
-      if (activeConversationId) {
-        socket.emit('chat:leave', activeConversationId);
+    const handlePresenceSnapshot = ({ users }: { users: Array<{ userId: string; isOnline: boolean; lastSeenAt?: string }> }) => {
+      users.forEach((user) => setUserPresence(user.userId, user.isOnline, user.lastSeenAt));
+    };
+    const flushIncoming = () => {
+      const pending = incomingQueue.current.splice(0);
+      queueFrame.current = null;
+      const grouped = new Map<string, ChatMessage[]>();
+      pending.forEach(({ conversationId, message }) => {
+        grouped.set(conversationId, [...(grouped.get(conversationId) || []), message]);
+      });
+      grouped.forEach((messages, conversationId) => addMessages(conversationId, messages));
+    };
+    const handleNewMessage = ({ message, conversationId }: { message: ChatMessage; conversationId: string }) => {
+      incomingQueue.current.push({ message, conversationId });
+      if (queueFrame.current === null) queueFrame.current = requestAnimationFrame(flushIncoming);
+    };
+    const handleConversationUpdate = ({ conversationId, message, unreadDelta = 0 }: ConversationUpdate) => {
+      updateConversationFromMessage(conversationId, message, unreadDelta);
+    };
+    const handleMessageUpdated = ({ conversationId, message }: { conversationId: string; message: ChatMessage }) => {
+      reconcileMessage(conversationId, message);
+      const conversation = useChatStore.getState().conversations.find((candidate) => candidate._id === conversationId);
+      if (conversation?.lastMessage?._id === message._id) updateConversationFromMessage(conversationId, message, 0);
+    };
+    const handleStatusUpdate = ({ conversationId, status }: { conversationId: string; status: ChatMessage['status'] }) => {
+      const shouldAdvance = (useChatStore.getState().messagesMap[conversationId] || []).some((message) => {
+        const senderId = typeof message.senderId === 'string' ? message.senderId : getUserId(message.senderId);
+        if (senderId !== currentUserId) return false;
+        if (status === 'seen') return message.status !== 'seen';
+        if (status === 'delivered') return message.status === 'sent';
+        return false;
+      });
+      updateMessagesStatus(conversationId, status, currentUserId);
+      if (shouldAdvance && conversationId === useChatStore.getState().visibleConversationId && document.visibilityState !== 'hidden') {
+        if (status === 'delivered') playNotificationSound('delivered');
+        if (status === 'seen') playNotificationSound('read');
       }
     };
-  }, [activeConversationId]);
+    const handleTypingStart = ({ conversationId, userId, displayName, activity }: TypingUser & { conversationId: string }) => {
+      if (userId !== currentUserId) setTyping(conversationId, { userId, displayName, activity });
+    };
+    const handleTypingStop = ({ conversationId, userId }: { conversationId: string; userId: string }) => {
+      removeTyping(conversationId, userId);
+    };
 
-  // Handlers
-  function handleSelectConversation(id: string) {
-    setActiveConversationId(id);
-    setMobileView('chat');
-  }
+    socket.on('presence:update', handlePresence);
+    socket.on('presence:snapshot', handlePresenceSnapshot);
+    socket.on('message:new', handleNewMessage);
+    socket.on('conversation:updated', handleConversationUpdate);
+    socket.on('message:updated', handleMessageUpdated);
+    socket.on('message:status_update', handleStatusUpdate);
+    socket.on('typing:user_start', handleTypingStart);
+    socket.on('typing:user_stop', handleTypingStop);
+    socket.emit('presence:get');
 
-  function handleSendMessage(content: string) {
-    if (!activeConversationId) return;
+    return () => {
+      socket.off('presence:update', handlePresence);
+      socket.off('presence:snapshot', handlePresenceSnapshot);
+      socket.off('message:new', handleNewMessage);
+      socket.off('conversation:updated', handleConversationUpdate);
+      socket.off('message:updated', handleMessageUpdated);
+      socket.off('message:status_update', handleStatusUpdate);
+      socket.off('typing:user_start', handleTypingStart);
+      socket.off('typing:user_stop', handleTypingStop);
+      if (queueFrame.current !== null) cancelAnimationFrame(queueFrame.current);
+    };
+  }, [addMessages, currentUserId, reconcileMessage, removeTyping, setTyping, setUserPresence, updateConversationFromMessage, updateMessagesStatus]);
 
-    // Optimistic message
-    const tempId = `temp-${Date.now()}`;
-    const optMsg: ChatMessage = {
+  useEffect(() => {
+    const socket = connectSocket();
+    if (visibleConversationId) socket.emit('chat:join', visibleConversationId);
+    return () => {
+      if (visibleConversationId) socket.emit('chat:leave', visibleConversationId);
+    };
+  }, [visibleConversationId]);
+
+  const sendMessage = useCallback((content: string, replyTo?: ChatMessage, attachments: ChatAttachment[] = [], retry?: ChatMessage) => {
+    if (!activeConversationId || !currentUser) return;
+    const clientId = retry?.clientId || globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    const tempId = retry?._id || `temp-${clientId}`;
+    const optimisticMessage: ChatMessage = {
+      ...(retry || {}),
       _id: tempId,
+      clientId,
       conversationId: activeConversationId,
-      senderId: currentUser!,
+      senderId: currentUser,
       content,
-      status: 'sent',
-      readBy: [getUserId(currentUser!)],
-      createdAt: new Date().toISOString(),
+      status: 'sending',
+      readBy: [currentUserId],
+      replyTo: replyTo ? {
+        _id: replyTo._id,
+        senderId: replyTo.senderId,
+        content: replyTo.content,
+        deletedAt: replyTo.deletedAt,
+      } : retry?.replyTo,
+      reactions: retry?.reactions || [],
+      attachments: retry?.attachments || attachments,
+      createdAt: retry?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
 
-    addMessage(activeConversationId, optMsg);
+    if (retry) updateMessage(activeConversationId, tempId, { status: 'sending' });
+    else addMessage(activeConversationId, optimisticMessage);
+    updateConversationFromMessage(activeConversationId, optimisticMessage, 0);
+    impact(ImpactStyle.Light);
 
     const socket = connectSocket();
-    socket.timeout(10_000).emit('message:send', { conversationId: activeConversationId, content }, (error: Error | null, res: any) => {
-      if (!error && res?.success && res.message) {
-        removeMessage(activeConversationId, tempId);
-        addMessage(activeConversationId, res.message);
-        queryClient.invalidateQueries({ queryKey: ['conversations'] });
-      } else {
-        removeMessage(activeConversationId, tempId);
-        toast.error(res?.error ?? 'Message wasn’t sent. Please try again.');
+    socket.timeout(10_000).emit(
+      'message:send',
+      {
+        conversationId: activeConversationId,
+        content,
+        clientId,
+        replyToId: typeof optimisticMessage.replyTo === 'object' ? optimisticMessage.replyTo._id : undefined,
+        attachments: optimisticMessage.attachments,
+      },
+      (error: Error | null, response: { success?: boolean; message?: ChatMessage; error?: string }) => {
+        if (!error && response?.success && response.message) {
+          reconcileMessage(activeConversationId, response.message);
+          updateConversationFromMessage(activeConversationId, response.message, 0);
+          playNotificationSound('outgoing');
+          return;
+        }
+        updateMessage(activeConversationId, tempId, { status: 'failed' });
+        toast.error(response?.error || 'Message wasn’t sent. Tap it to retry.');
       }
-    });
+    );
+  }, [activeConversationId, addMessage, currentUser, currentUserId, reconcileMessage, updateConversationFromMessage, updateMessage]);
+
+  function handleSelectConversation(id: string) {
+    setActiveConversationId(id);
+    setMobileView('chat');
+    updateConversation(id, { unreadCount: 0 });
+    impact(ImpactStyle.Light);
   }
 
   function handleEditMessage(messageId: string, newContent: string) {
     if (!activeConversationId) return;
-    editMessage(activeConversationId, messageId, newContent).then(({ message }) => {
-      updateMessage(activeConversationId, messageId, message);
-    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to edit this message.').message));
+    editMessage(activeConversationId, messageId, newContent)
+      .then(({ message }) => updateMessage(activeConversationId, messageId, message))
+      .catch((error) => toast.error(getFriendlyApiError(error, 'Unable to edit this message.').message));
   }
 
   function handleDeleteMessage(messageId: string) {
     if (!activeConversationId) return;
-    deleteMessage(activeConversationId, messageId).then(() => {
-      deleteMessageInStore(activeConversationId, messageId);
-    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to delete this message.').message));
+    impact(ImpactStyle.Medium);
+    deleteMessage(activeConversationId, messageId)
+      .then(() => deleteMessageInStore(activeConversationId, messageId))
+      .catch((error) => toast.error(getFriendlyApiError(error, 'Unable to delete this message.').message));
+  }
+
+  function handleReactMessage(messageId: string, emoji: string) {
+    if (!activeConversationId) return;
+    impact(ImpactStyle.Light);
+    connectSocket().timeout(8_000).emit(
+      'message:react',
+      { conversationId: activeConversationId, messageId, emoji },
+      (error: Error | null, response: { success?: boolean; message?: ChatMessage; error?: string }) => {
+        if (!error && response?.success && response.message) updateMessage(activeConversationId, messageId, response.message);
+        else toast.error(response?.error || 'Unable to add reaction.');
+      }
+    );
   }
 
   function handleTypingStart() {
-    if (!activeConversationId) return;
-    const socket = connectSocket();
-    socket.emit('typing:start', activeConversationId);
+    if (visibleConversationId) connectSocket().emit('typing:start', visibleConversationId);
   }
 
   function handleTypingStop() {
-    if (!activeConversationId) return;
-    const socket = connectSocket();
-    socket.emit('typing:stop', activeConversationId);
+    if (visibleConversationId) connectSocket().emit('typing:stop', visibleConversationId);
+  }
+
+  function handleRecordingStart() {
+    if (visibleConversationId) connectSocket().emit('recording:start', visibleConversationId);
+  }
+
+  function handleRecordingStop() {
+    if (visibleConversationId) connectSocket().emit('recording:stop', visibleConversationId);
   }
 
   function handleMuteToggle(id: string) {
@@ -203,10 +332,13 @@ export default function ChatPage() {
     }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to update this chat.').message));
   }
 
-  function handleDeleteConv(id: string) {
+  function handleDeleteConversation(id: string) {
     deleteConversation(id).then(() => {
-      setConversations(conversations.filter((c) => c._id !== id));
-      if (activeConversationId === id) setActiveConversationId(null);
+      setConversations(conversations.filter((conversation) => conversation._id !== id));
+      if (activeConversationId === id) {
+        setActiveConversationId(null);
+        setMobileView('list');
+      }
       toast.success('Conversation deleted');
     }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to delete this conversation.').message));
   }
@@ -214,75 +346,82 @@ export default function ChatPage() {
   function handleBlock(targetUserId: string) {
     blockUser(targetUserId).then(() => {
       toast.success('User blocked');
-      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      void queryClient.invalidateQueries({ queryKey: ['conversations'] });
       setActiveConversationId(null);
+      setMobileView('list');
     }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to block this user.').message));
   }
 
   function handleReport(targetUserId: string) {
-    reportUser(targetUserId, 'Inappropriate Chat').then(() => {
-      toast.success('User reported');
-    }).catch((error) => toast.error(getFriendlyApiError(error, 'Unable to submit your report.').message));
+    reportUser(targetUserId, 'Inappropriate Chat')
+      .then(() => toast.success('User reported'))
+      .catch((error) => toast.error(getFriendlyApiError(error, 'Unable to submit your report.').message));
   }
 
-  const activeConv = conversations.find((c) => c._id === activeConversationId);
-  const activeMessages = activeConversationId ? messagesMap[activeConversationId] || [] : [];
-  const recipient = activeConv?.recipient;
-  const isOnline = recipient ? onlineUsers.has(getUserId(recipient)) : false;
-  const isTyping = activeConversationId ? (typingMap[activeConversationId] || []).length > 0 : false;
+  const activeConversation = conversations.find((conversation) => conversation._id === activeConversationId);
+  const recipient = activeConversation?.recipient;
+  const recipientId = recipient ? getUserId(recipient) : '';
+  const isOnline = Boolean(recipientId && onlineUsers.has(recipientId));
+  const typingUser = activeConversationId ? (typingMap[activeConversationId] || [])[0] : undefined;
+  const lastSeenAt = recipientId ? lastSeenMap[recipientId] || recipient?.lastSeenAt : recipient?.lastSeenAt;
 
   return (
     <div className="mx-auto h-full w-full max-w-7xl overflow-hidden md:p-4">
       <div className="flex h-full w-full overflow-hidden bg-white md:rounded-[2rem] md:border md:border-gray-200/70 md:shadow-card dark:bg-gray-900 md:dark:border-gray-800">
-        {/* Sidebar / Conversation List */}
-        <div
-          className={`h-full w-full md:w-80 lg:w-96 flex-shrink-0 ${
-            mobileView === 'chat' ? 'hidden md:block' : 'block'
-          }`}
-        >
+        <div className={`h-full w-full flex-shrink-0 md:block md:w-80 lg:w-96 ${mobileView === 'chat' ? 'hidden' : 'block'}`}>
           <ConversationList
             conversations={conversations}
             activeConversationId={activeConversationId}
             onSelectConversation={handleSelectConversation}
             onMuteToggle={handleMuteToggle}
             onArchiveToggle={handleArchiveToggle}
-            onDeleteConversation={handleDeleteConv}
+            onDeleteConversation={handleDeleteConversation}
+            onRefresh={async () => { await convQuery.refetch(); }}
+            isLoading={convQuery.isPending}
             onlineUsers={onlineUsers}
             typingMap={typingMap}
           />
         </div>
 
-        {/* Active Chat Window */}
-        <div
-          className={`h-full flex-1 ${
-            mobileView === 'list' ? 'hidden md:block' : 'block'
-          }`}
-        >
-          {activeConv ? (
+        <div className={`h-full min-w-0 flex-1 md:block ${mobileView === 'list' ? 'hidden' : 'block'}`}>
+          {activeConversation ? (
             <ChatWindow
-              conversation={activeConv}
+              key={activeConversation._id}
+              conversation={activeConversation}
               messages={activeMessages}
-              currentUserId={getUserId(currentUser!)}
+              currentUserId={currentUserId}
               isOnline={isOnline}
-              isTyping={isTyping}
+              typingUser={typingUser}
+              lastSeenAt={lastSeenAt}
+              draft={drafts[activeConversation._id] || ''}
+              onDraftChange={(draft) => setDraft(activeConversation._id, draft)}
               isLoadingMessages={messagesQuery.isPending}
               isLoadingOlder={messagesQuery.isFetchingNextPage}
               hasOlderMessages={messagesQuery.hasNextPage}
               onLoadOlderMessages={() => messagesQuery.fetchNextPage().then(() => undefined)}
-              onSendMessage={handleSendMessage}
+              onSendMessage={sendMessage}
+              onRetryMessage={(message) => sendMessage(
+                message.content,
+                typeof message.replyTo === 'object' ? message.replyTo as ChatMessage : undefined,
+                message.attachments || [],
+                message
+              )}
               onEditMessage={handleEditMessage}
               onDeleteMessage={handleDeleteMessage}
+              onReactMessage={handleReactMessage}
               onTypingStart={handleTypingStart}
               onTypingStop={handleTypingStop}
+              onRecordingStart={handleRecordingStart}
+              onRecordingStop={handleRecordingStop}
               onBlockUser={handleBlock}
               onReportUser={handleReport}
               onBackMobile={() => setMobileView('list')}
             />
           ) : (
-            <div className="flex h-full items-center justify-center p-6 bg-gray-50/50 dark:bg-gray-950/40">
+            <div className="flex h-full items-center justify-center bg-gradient-to-br from-brand-50/70 via-white to-violet-50/60 p-6 dark:from-gray-950 dark:via-gray-900 dark:to-brand-950/30">
               <EmptyState
-                title="Select a conversation"
-                description="Choose an existing chat from the list or start a new private chat from Friends."
+                title="Your conversations live here"
+                description="Choose a chat or start a private conversation with one of your friends."
               />
             </div>
           )}

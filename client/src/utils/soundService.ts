@@ -22,7 +22,7 @@ export function getSoundEnabled(): boolean {
   return isSoundEnabled;
 }
 
-export function playNotificationSound(type: 'friend_request' | 'message') {
+export function playNotificationSound(type: 'friend_request' | 'message' | 'outgoing' | 'delivered' | 'read') {
   if (!isSoundEnabled) return;
 
   try {
@@ -34,6 +34,7 @@ export function playNotificationSound(type: 'friend_request' | 'message') {
 
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
+    osc.onended = () => { void ctx.close().catch(() => undefined); };
 
     osc.type = 'sine';
 
@@ -53,8 +54,15 @@ export function playNotificationSound(type: 'friend_request' | 'message') {
       osc.stop(now + 0.4);
     } else {
       // Soft message pop: A5 (880Hz)
-      osc.frequency.setValueAtTime(880, now);
-      osc.frequency.exponentialRampToValueAtTime(1174.66, now + 0.1);
+      const frequencies = {
+        message: [880, 1174.66],
+        outgoing: [523.25, 783.99],
+        delivered: [659.25, 783.99],
+        read: [783.99, 1046.5],
+      } as const;
+      const [start, end] = frequencies[type];
+      osc.frequency.setValueAtTime(start, now);
+      osc.frequency.exponentialRampToValueAtTime(end, now + 0.1);
 
       gain.gain.setValueAtTime(0, now);
       gain.gain.linearRampToValueAtTime(0.25, now + 0.03);

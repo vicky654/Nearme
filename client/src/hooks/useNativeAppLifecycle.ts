@@ -6,6 +6,7 @@ import { PushNotifications } from '@capacitor/push-notifications';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { restoreSession } from './useAuthBootstrap';
 import { useAuthStore } from '../store/authStore';
+import { registerPushToken } from '../api/userApi';
 
 export function useNativeAppLifecycle(drawerOpen: boolean, closeDrawer: () => void): void {
   const navigate = useNavigate();
@@ -54,12 +55,26 @@ export function useNativeAppLifecycle(drawerOpen: boolean, closeDrawer: () => vo
       else if (data?.path?.startsWith('/')) navigate(data.path);
       else navigate('/notifications');
     });
+    const pushRegistration = PushNotifications.addListener('registration', ({ value }) => {
+      localStorage.setItem('nearme.push-token', value);
+      void registerPushToken(value).catch(() => undefined);
+    });
+    if (Capacitor.getPlatform() === 'android') {
+      void PushNotifications.createChannel({
+        id: 'messages',
+        name: 'Messages',
+        description: 'New messages and conversation activity',
+        importance: 5,
+        visibility: 1,
+        vibration: true,
+      }).catch(() => undefined);
+    }
     void PushNotifications.checkPermissions()
       .then((permission) => { if (permission.receive === 'granted') return PushNotifications.register(); })
       .catch(() => undefined);
 
     return () => {
-      for (const listener of [appStateListener, urlListener, backListener, keyboardShow, keyboardHide, pushAction]) {
+      for (const listener of [appStateListener, urlListener, backListener, keyboardShow, keyboardHide, pushAction, pushRegistration]) {
         void listener.then((handle) => handle.remove());
       }
     };
