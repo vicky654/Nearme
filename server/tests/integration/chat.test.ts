@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, afterEach } from 'vitest';
 import request from 'supertest';
 import app from '../../src/app';
 import User from '../../src/models/User';
@@ -7,7 +7,7 @@ import Conversation from '../../src/models/Conversation';
 import Message from '../../src/models/Message';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/testDb';
 import { signAccessToken } from '../../src/services/tokenService';
-import { unlink } from 'fs/promises';
+import { access, unlink } from 'fs/promises';
 import path from 'path';
 import { chatUploadDirectory } from '../../src/middleware/chatUpload';
 
@@ -16,6 +16,7 @@ describe('Chat API', () => {
   let userB: any;
   let tokenA: string;
   let tokenB: string;
+  let uploadedPath: string | null = null;
 
   beforeAll(async () => {
     await startTestDb();
@@ -23,6 +24,11 @@ describe('Chat API', () => {
 
   afterAll(async () => {
     await stopTestDb();
+  });
+
+  afterEach(async () => {
+    if (uploadedPath) await unlink(uploadedPath).catch(() => undefined);
+    uploadedPath = null;
   });
 
   beforeEach(async () => {
@@ -90,13 +96,14 @@ describe('Chat API', () => {
       .attach('attachment', Buffer.from([0xff, 0xd8, 0xff, 0xd9]), { filename: 'photo.jpg', contentType: 'image/jpeg' });
     expect(uploadRes.status).toBe(201);
     expect(uploadRes.body.attachment).toEqual(expect.objectContaining({ type: 'image', name: 'photo.jpg' }));
-    await unlink(path.join(chatUploadDirectory, path.basename(uploadRes.body.attachment.url)));
+    const messageAttachmentPath = path.join(chatUploadDirectory, path.basename(uploadRes.body.attachment.url));
+    uploadedPath = messageAttachmentPath;
 
     // Send message
     const msgRes = await request(app)
       .post(`/api/v1/chats/${convId}/messages`)
       .set('Authorization', `Bearer ${tokenA}`)
-      .send({ content: 'Hello Bob!' });
+      .send({ content: 'Hello Bob!', attachments: [uploadRes.body.attachment] });
 
     expect(msgRes.status).toBe(201);
     expect(msgRes.body.message.content).toBe('Hello Bob!');
@@ -133,5 +140,7 @@ describe('Chat API', () => {
 
     expect(delMsgRes.status).toBe(200);
     expect(delMsgRes.body.message.deletedAt).toBeDefined();
+    await expect(access(messageAttachmentPath)).rejects.toBeDefined();
+    uploadedPath = null;
   });
 });

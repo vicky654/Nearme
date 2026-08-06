@@ -9,8 +9,6 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('vite/preload-helper')) return 'vite-runtime';
-          if (id.includes('node_modules/@ionic')) return 'ionic-runtime';
-          if (id.includes('node_modules/ionicons')) return 'icons-runtime';
           const capacitorPackage = id.match(/node_modules\/@capacitor\/([^/]+)/)?.[1];
           if (capacitorPackage) return `capacitor-${capacitorPackage}`;
           if (id.includes('node_modules/react') || id.includes('node_modules/react-dom') || id.includes('node_modules/react-router')) return 'react-runtime';

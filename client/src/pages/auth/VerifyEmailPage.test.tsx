@@ -32,7 +32,7 @@ describe('VerifyEmailPage', () => {
     });
     renderPage('/verify-email?token=abc123');
     expect(await screen.findByText(/email verified/i)).toBeInTheDocument();
-    expect(verifyEmail).toHaveBeenCalledWith('abc123');
+    expect(verifyEmail).toHaveBeenCalledWith('abc123', expect.any(AbortSignal));
   });
 
   it('shows an error message when verification fails', async () => {

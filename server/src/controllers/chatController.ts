@@ -9,6 +9,19 @@ import { getIO } from '../socket';
 import { unlink } from 'fs/promises';
 import path from 'path';
 import { env } from '../config/env';
+import { chatUploadDirectory } from '../middleware/chatUpload';
+
+async function deleteAttachmentFiles(attachments: Array<{ url?: string }>): Promise<void> {
+  await Promise.all(attachments.map(async (attachment) => {
+    if (!attachment.url) return;
+    let filename = '';
+    try { filename = path.basename(new URL(attachment.url, 'http://localhost').pathname); } catch { return; }
+    if (!/^[a-zA-Z0-9._-]+$/.test(filename)) return;
+    const target = path.resolve(chatUploadDirectory, filename);
+    if (path.dirname(target) !== path.resolve(chatUploadDirectory)) return;
+    await unlink(target).catch(() => undefined);
+  }));
+}
 
 async function emitMessageUpdated(conversationId: string, message: unknown): Promise<void> {
   const io = getIO();
@@ -336,9 +349,12 @@ export async function deleteMessage(req: Request, res: Response, next: NextFunct
       throw new AppError(404, 'Message not found or unauthorized');
     }
 
+    const attachments = [...(message.attachments || [])];
     message.deletedAt = new Date();
     message.content = 'This message was deleted';
+    message.attachments = [];
     await message.save();
+    await deleteAttachmentFiles(attachments);
 
     await emitMessageUpdated(String(conversationId), message);
 
@@ -448,11 +464,14 @@ export async function deleteConversation(req: Request, res: Response, next: Next
     const userId = req.userId!;
     const { conversationId } = req.params;
 
-    await Conversation.findOneAndDelete({
+    const conversation = await Conversation.findOneAndDelete({
       _id: conversationId,
       participants: userId,
     });
+    if (!conversation) throw new AppError(404, 'Conversation not found');
 
+    const messages = await Message.find({ conversationId }).select('attachments');
+    await deleteAttachmentFiles(messages.flatMap((message) => message.attachments || []));
     await Message.deleteMany({ conversationId });
 
     res.json({ message: 'Conversation deleted' });
