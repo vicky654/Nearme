@@ -36,6 +36,9 @@ vi.mock('./useNetworkStatus', () => ({ useNetworkStatus: () => useNetworkStatusM
 const updateLocationMock = vi.fn();
 vi.mock('../api/friendApi', () => ({ updateLocation: (...args: unknown[]) => updateLocationMock(...args) }));
 
+const invalidateQueries = vi.fn();
+vi.mock('@tanstack/react-query', () => ({ useQueryClient: () => ({ invalidateQueries }) }));
+
 import { useLocationTracking } from './useLocationTracking';
 import { useLocationStore } from '../store/locationStore';
 import { cachePendingLocation, readPendingLocation } from '../utils/locationOfflineCache';
@@ -50,6 +53,7 @@ describe('useLocationTracking', () => {
     clearWatch.mockClear();
     addListener.mockReset();
     updateLocationMock.mockReset().mockResolvedValue(undefined);
+    invalidateQueries.mockReset();
     useNetworkStatusMock.mockReturnValue(true);
     // Default: permission stays granted across any re-probe triggered by the
     // foreground handlers / watch-error handler, so existing watch lifecycle
@@ -188,6 +192,10 @@ describe('useLocationTracking', () => {
     Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
     document.dispatchEvent(new Event('visibilitychange'));
     await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(2));
+    // Re-checking permission on foreground is useLocationPermission's job now
+    // (it's mounted app-wide and must work even when this hook isn't tracking
+    // yet) — this hook only ever starts/stops the watch.
+    expect(checkPermissions).not.toHaveBeenCalled();
   });
 
   it('clears the watch and removes the visibilitychange listener on unmount (web)', async () => {
@@ -228,6 +236,10 @@ describe('useLocationTracking', () => {
     watchPosition.mockResolvedValue('watch-2');
     appStateCallback!({ isActive: true });
     await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(2));
+    // Re-checking permission on foreground is useLocationPermission's job now
+    // (it's mounted app-wide and must work even when this hook isn't tracking
+    // yet) — this hook only ever starts/stops the watch.
+    expect(checkPermissions).not.toHaveBeenCalled();
   });
 
   it('treats any watch error as cause to re-check permission and marks gpsState as lost', async () => {
@@ -247,43 +259,54 @@ describe('useLocationTracking', () => {
     await waitFor(() => expect(useLocationStore.getState().permissionStatus).toBe('blocked'));
   });
 
-  it('re-checks permission when the app returns to the foreground (web visibilitychange)', async () => {
+  it('invalidates the nearby-users query after successfully sending a fix', async () => {
     useLocationStore.setState({ permissionStatus: 'granted' });
+    watchPosition.mockImplementation((_options, callback) => {
+      callback({ coords: { latitude: 10, longitude: 20, accuracy: 8 }, timestamp: 1_000 }, undefined);
+      return Promise.resolve('watch-1');
+    });
+
     renderHook(() => useLocationTracking());
-    await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1));
-    checkPermissions.mockClear();
 
-    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
-    document.dispatchEvent(new Event('visibilitychange'));
-    await waitFor(() => expect(clearWatch).toHaveBeenCalled());
-    expect(checkPermissions).not.toHaveBeenCalled();
-
-    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
-    document.dispatchEvent(new Event('visibilitychange'));
-
-    await waitFor(() => expect(checkPermissions).toHaveBeenCalled());
+    await waitFor(() => expect(updateLocationMock).toHaveBeenCalled());
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['nearby'] });
   });
 
-  it('re-checks permission on the native appStateChange foreground transition', async () => {
-    isNativePlatform.mockReturnValue(true);
-    const remove = vi.fn().mockResolvedValue(undefined);
-    let appStateCallback: ((state: { isActive: boolean }) => void) | undefined;
-    addListener.mockImplementation((event: string, callback: (state: { isActive: boolean }) => void) => {
-      if (event === 'appStateChange') appStateCallback = callback;
-      return Promise.resolve({ remove });
-    });
+  it('invalidates the nearby-users query after flushing a previously cached fix', async () => {
+    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at: Date.now() });
     useLocationStore.setState({ permissionStatus: 'granted' });
 
     renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(updateLocationMock).toHaveBeenCalledWith(5, 6, 3));
+    await waitFor(() => expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: ['nearby'] }));
+  });
+
+  it('does not invalidate the nearby-users query when sending a fix fails', async () => {
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    updateLocationMock.mockRejectedValue(new Error('network down'));
+    watchPosition.mockImplementation((_options, callback) => {
+      callback({ coords: { latitude: 10, longitude: 20, accuracy: 8 }, timestamp: 1_000 }, undefined);
+      return Promise.resolve('watch-1');
+    });
+
+    renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(updateLocationMock).toHaveBeenCalled());
+    expect(invalidateQueries).not.toHaveBeenCalled();
+  });
+
+  it('resumes tracking on its own once permission flips to granted (e.g. via useLocationPermission re-probing after the user grants it in OS Settings)', async () => {
+    useLocationStore.setState({ permissionStatus: 'blocked' });
+    const { rerender } = renderHook(() => useLocationTracking());
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(watchPosition).not.toHaveBeenCalled();
+
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    rerender();
+
     await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1));
-    checkPermissions.mockClear();
-
-    appStateCallback!({ isActive: false });
-    await waitFor(() => expect(clearWatch).toHaveBeenCalled());
-    expect(checkPermissions).not.toHaveBeenCalled();
-
-    appStateCallback!({ isActive: true });
-    await waitFor(() => expect(checkPermissions).toHaveBeenCalled());
   });
 
   it('downgrades gpsState to lost when no fix arrives within 2x the send interval, and back to active on the next fix', async () => {

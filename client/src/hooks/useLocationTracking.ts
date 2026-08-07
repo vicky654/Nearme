@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation, CallbackID } from '@capacitor/geolocation';
 import { App as CapacitorApp } from '@capacitor/app';
@@ -28,6 +29,7 @@ export function useLocationTracking(): void {
   const setLastKnownPosition = useLocationStore((state) => state.setLastKnownPosition);
   const setLastSentAt = useLocationStore((state) => state.setLastSentAt);
   const isOnline = useNetworkStatus();
+  const queryClient = useQueryClient();
   const lastSentRef = useRef<LocationFix | null>(null);
   const watchIdRef = useRef<CallbackID | null>(null);
 
@@ -42,6 +44,9 @@ export function useLocationTracking(): void {
         lastSentRef.current = fix;
         setLastSentAt(fix.at);
         clearPendingLocation();
+        // A moved user's proximity to everyone else has changed — keep the
+        // Nearby list from going stale while continuous tracking is running.
+        void queryClient.invalidateQueries({ queryKey: ['nearby'] });
       } catch {
         cachePendingLocation({ lat: fix.lat, lng: fix.lng, accuracy, at: fix.at });
       }
@@ -104,24 +109,21 @@ export function useLocationTracking(): void {
       }
     }, STALE_CHECK_INTERVAL_MS);
 
+    // Starting/stopping the watch on foreground/background is this hook's
+    // job; keeping `permissionStatus` itself current is useLocationPermission's
+    // job (it re-probes on every foreground transition regardless of this
+    // hook's status, which is what lets tracking resume automatically after
+    // an external grant — see useLocationPermission.ts).
     function handleVisibility() {
-      if (document.visibilityState === 'hidden') {
-        void stopWatch();
-      } else {
-        // Re-probe permission on return to foreground so a grant/revoke made
-        // while the app was backgrounded (e.g. via OS Settings) is noticed.
-        void refreshLocationPermissionStatus();
-        void startWatch();
-      }
+      if (document.visibilityState === 'hidden') void stopWatch();
+      else void startWatch();
     }
 
     let appStateListener: ReturnType<typeof CapacitorApp.addListener> | undefined;
     if (Capacitor.isNativePlatform()) {
       appStateListener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
-        if (isActive) {
-          void refreshLocationPermissionStatus();
-          void startWatch();
-        } else void stopWatch();
+        if (isActive) void startWatch();
+        else void stopWatch();
       });
     } else {
       document.addEventListener('visibilitychange', handleVisibility);
@@ -134,7 +136,7 @@ export function useLocationTracking(): void {
       if (appStateListener) void appStateListener.then((listener) => listener.remove());
       else document.removeEventListener('visibilitychange', handleVisibility);
     };
-  }, [status, setGpsState, setLastKnownPosition, setLastSentAt]);
+  }, [status, setGpsState, setLastKnownPosition, setLastSentAt, queryClient]);
 
   useEffect(() => {
     if (!isOnline) return;
@@ -160,6 +162,7 @@ export function useLocationTracking(): void {
         clearPendingLocation();
         lastSentRef.current = { lat: pending.lat, lng: pending.lng, at: pending.at };
         setLastSentAt(pending.at);
+        void queryClient.invalidateQueries({ queryKey: ['nearby'] });
       })
       .catch((err: unknown) => {
         // A network failure leaves the cache in place to retry later; a
@@ -167,5 +170,5 @@ export function useLocationTracking(): void {
         // it (4xx/5xx), so retrying forever would be pointless — discard it.
         if (isHttpRejection(err)) clearPendingLocation();
       });
-  }, [isOnline, status, setLastSentAt]);
+  }, [isOnline, status, setLastSentAt, queryClient]);
 }

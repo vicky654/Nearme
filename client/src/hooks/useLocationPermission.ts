@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
 import { Geolocation } from '@capacitor/geolocation';
+import { App as CapacitorApp } from '@capacitor/app';
 import { NativeSettings, AndroidSettings, IOSSettings } from 'capacitor-native-settings';
 import { useLocationStore, LocationPermissionStatus } from '../store/locationStore';
 
@@ -65,10 +66,11 @@ async function requestStatus(): Promise<LocationPermissionStatus> {
 
 /**
  * Re-runs the underlying permission check and writes the result to the shared
- * store. Exported so other hooks (e.g. `useLocationTracking`) can re-probe
- * permission status outside of `useLocationPermission`'s own mount effect —
- * on a watch error, or when the app returns to the foreground — without
- * duplicating the check/mapping logic above.
+ * store, without requiring a mounted `useLocationPermission()` instance.
+ * Used internally by this hook's own foreground-reprobe effect below, and
+ * exported so `useLocationTracking` can re-probe on a watch error (e.g. the
+ * OS revoking permission out from under an active watch) without duplicating
+ * the check/mapping logic above.
  */
 export async function refreshLocationPermissionStatus(): Promise<LocationPermissionStatus> {
   const next = await checkStatus();
@@ -83,6 +85,35 @@ export function useLocationPermission() {
   useEffect(() => {
     void checkStatus().then(setStatus);
   }, [setStatus]);
+
+  // Permission can change while the app is backgrounded — most notably, a
+  // user who was blocked/denied and fixes it via the OS Settings app returns
+  // with no in-app signal that anything changed. Re-probe on every return to
+  // the foreground, regardless of the status we already have, so that case
+  // (and an external revoke) are both picked up without requiring a reload.
+  // This effect is intentionally NOT gated on `status` — the whole point is
+  // to notice a change *into* granted, which requires the listener to exist
+  // even while status is 'blocked'/'denied'/'prompt'.
+  useEffect(() => {
+    function handleForeground() {
+      void refreshLocationPermissionStatus();
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      const listener = CapacitorApp.addListener('appStateChange', ({ isActive }) => {
+        if (isActive) handleForeground();
+      });
+      return () => {
+        void listener.then((handle) => handle.remove());
+      };
+    }
+
+    function handleVisibility() {
+      if (document.visibilityState !== 'hidden') handleForeground();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, []);
 
   const request = useCallback(async () => {
     const next = await requestStatus();
