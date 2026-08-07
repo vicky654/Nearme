@@ -43,7 +43,7 @@ export function useLocationTracking(): void {
     }
 
     async function startWatch() {
-      if (disposed) return;
+      if (disposed || watchIdRef.current) return;
       setGpsState('searching');
       const id = await Geolocation.watchPosition(WATCH_OPTIONS, (position, err) => {
         if (err || !position) return;
