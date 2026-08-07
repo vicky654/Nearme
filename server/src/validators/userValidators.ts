@@ -8,6 +8,7 @@ export const updateProfileSchema = z.object({
   age: z.number().int().min(13).max(120).optional(),
   country: z.string().max(60).optional(),
   city: z.string().max(60).optional(),
+  avatarUrl: z.string().url().max(500).optional(),
   interests: z.array(z.string().max(30)).max(20).optional(),
   languages: z.array(z.string().max(30)).max(10).optional(),
 });

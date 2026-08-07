@@ -6,6 +6,7 @@ import type { ConversationItem } from '../../api/chatApi';
 import type { TypingUser } from '../../store/chatStore';
 import { getUserId } from '../../types/user';
 import { Skeleton } from '../ui/Skeleton';
+import { Avatar } from '../ui/Avatar';
 
 interface ConversationListProps {
   conversations: ConversationItem[];
@@ -113,8 +114,15 @@ export function ConversationList({
                 >
                   <button type="button" onClick={() => onSelectConversation(conversation._id)} className="flex min-h-[76px] w-full items-center gap-3 px-3 py-2.5 pr-12 text-left" aria-current={isActive ? 'page' : undefined}>
                     <motion.div whileHover={{ scale: 1.04 }} className="relative shrink-0">
-                      <img loading="lazy" decoding="async" src={recipient.avatarUrl} alt="" className="h-13 w-13 rounded-[1.1rem] object-cover shadow-sm" />
-                      {isOnline && <motion.span animate={{ scale: [1, 1.16, 1] }} transition={{ repeat: Infinity, duration: 2.5 }} className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[2.5px] border-white bg-emerald-500 dark:border-gray-900" aria-label="Online" />}
+                      <Avatar
+                        src={recipient.avatarUrl}
+                        alt={recipient.displayName}
+                        seed={recipient.username || recipient.displayName}
+                        size="md"
+                        shape="squircle"
+                        showOnlineStatus={isOnline}
+                        isOnline={isOnline}
+                      />
                     </motion.div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">

@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Avatar } from '../components/ui/Avatar';
 import { toast } from '../store/toastStore';
 import { useDebouncedValue } from '../hooks/useDebouncedValue';
 import { useSessionState } from '../hooks/useSessionState';
@@ -58,80 +59,79 @@ export default function SearchPage() {
         </p>
       </div>
 
-      {/* Filter Control Bar */}
-      <div className="app-card grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 sm:p-5 lg:grid-cols-4">
-        <Input
-          label="Search by name"
-          placeholder="Username or display name..."
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
-        <Input
-          label="City"
-          placeholder="e.g. San Francisco"
-          value={city}
-          onChange={(e) => setCity(e.target.value)}
-        />
-        <Input
-          label="Country"
-          placeholder="e.g. United States"
-          value={country}
-          onChange={(e) => setCountry(e.target.value)}
-        />
-        <Input
-          label="Interests"
-          placeholder="e.g. Coding, Music"
-          value={interests}
-          onChange={(e) => setInterests(e.target.value)}
-        />
+      {/* Filter inputs grid */}
+      <div className="app-card p-4">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Input
+            label="Search name or bio"
+            placeholder="e.g. Alex"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+          />
+          <Input
+            label="City"
+            placeholder="e.g. San Francisco"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+          />
+          <Input
+            label="Country"
+            placeholder="e.g. USA"
+            value={country}
+            onChange={(e) => setCountry(e.target.value)}
+          />
+          <Input
+            label="Interests"
+            placeholder="e.g. Coding, Music"
+            value={interests}
+            onChange={(e) => setInterests(e.target.value)}
+          />
+        </div>
       </div>
 
-      {/* Search Results */}
+      {/* Results grid */}
       {searchQuery.isPending && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3, 4, 5, 6].map((i) => (
-            <Skeleton key={i} className="h-56 w-full rounded-3xl" />
+            <Skeleton key={i} className="h-52 w-full rounded-2xl" />
           ))}
         </div>
       )}
 
       {searchQuery.isError && (
         <EmptyState
-          title="Search error"
-          description="Something went wrong performing search. Please try again."
+          title="Search failed"
+          description="Unable to fetch users at this time. Please try again."
         />
       )}
 
-      {searchQuery.data && searchQuery.data.users.length === 0 && (
+      {!searchQuery.isPending && !searchQuery.isError && searchQuery.data?.users.length === 0 && (
         <EmptyState
-          title="No matching users found"
-          description="Try broadening your search keywords or location criteria."
+          title="No people found"
+          description="Try broadening your search criteria or searching for something else."
         />
       )}
 
       {searchQuery.data && searchQuery.data.users.length > 0 && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {searchQuery.data.users.map((item) => {
             const uid = getUserId(item.user);
             return (
               <div
                 key={uid}
-                className="app-card flex flex-col justify-between p-5 transition-all hover:-translate-y-1 hover:shadow-soft"
+                className="app-card flex flex-col justify-between p-5 transition-all hover:-translate-y-0.5 hover:shadow-soft"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3">
-                    <div className="relative">
-                      <img
-                        loading="lazy"
-                        decoding="async"
-                        src={item.user.avatarUrl}
-                        alt={item.user.displayName}
-                        className="h-14 w-14 rounded-full object-cover shadow-sm"
-                      />
-                      {item.user.lastSeenAt && (
-                        <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
-                      )}
-                    </div>
+                    <Avatar
+                      src={item.user.avatarUrl}
+                      alt={item.user.displayName}
+                      seed={item.user.username || item.user.displayName}
+                      size="lg"
+                      shape="squircle"
+                      showOnlineStatus={Boolean(item.user.lastSeenAt)}
+                      isOnline={Boolean(item.user.lastSeenAt)}
+                    />
                     {item.user.city && item.user.country && (
                       <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
                         📍 {item.user.city}, {item.user.country}

@@ -9,6 +9,7 @@ import { disconnectSocket } from '../../api/socket';
 import { useChatStore } from '../../store/chatStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { cancelPendingApiRequests } from '../../api/axiosClient';
+import { Avatar } from '../ui/Avatar';
 
 export function ProfileDropdown() {
   const [isOpen, setIsOpen] = useState(false);
@@ -60,23 +61,26 @@ export function ProfileDropdown() {
         onClick={() => setIsOpen((prev) => !prev)}
         className="flex items-center gap-2 rounded-full p-1 transition-transform hover:scale-105"
       >
-        <div className="relative">
-          <img
-            src={user.avatarUrl}
-            alt={user.displayName}
-            className="h-9 w-9 rounded-full object-cover shadow-sm border border-gray-200 dark:border-gray-800"
-          />
-          <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
-        </div>
+        <Avatar
+          src={user.avatarUrl}
+          alt={user.displayName}
+          seed={user.username || user.displayName}
+          size="sm"
+          border
+          showOnlineStatus
+          isOnline
+        />
       </button>
 
       {isOpen && (
         <div className="absolute right-0 top-12 z-50 w-64 rounded-3xl border border-gray-200 bg-white p-3 shadow-2xl animate-in fade-in dark:border-gray-800 dark:bg-gray-900">
           <div className="flex items-center gap-3 border-b border-gray-100 p-3 dark:border-gray-800">
-            <img
+            <Avatar
               src={user.avatarUrl}
               alt={user.displayName}
-              className="h-10 w-10 rounded-full object-cover"
+              seed={user.username || user.displayName}
+              size="md"
+              shape="squircle"
             />
             <div className="min-w-0">
               <h4 className="font-bold text-xs text-gray-900 truncate dark:text-gray-100">

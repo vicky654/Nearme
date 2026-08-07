@@ -4,6 +4,7 @@ import { getAdminStats, getAdminUsers, updateAdminUserStatus, deleteAdminUserAcc
 import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
+import { Avatar } from '../components/ui/Avatar';
 import { toast } from '../store/toastStore';
 import { getUserId } from '../types/user';
 
@@ -189,10 +190,12 @@ export default function AdminPage() {
                     <tr key={uid} className="hover:bg-gray-50 dark:hover:bg-gray-800/40">
                       <td className="p-3">
                         <div className="flex items-center gap-3">
-                          <img
+                          <Avatar
                             src={user.avatarUrl}
                             alt={user.displayName}
-                            className="h-8 w-8 rounded-full object-cover"
+                            seed={user.username || user.displayName}
+                            size="sm"
+                            shape="squircle"
                           />
                           <div>
                             <p className="font-bold text-gray-900 dark:text-gray-100">

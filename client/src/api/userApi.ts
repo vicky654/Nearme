@@ -15,6 +15,7 @@ export interface UpdateProfileInput {
   city?: string;
   interests?: string[];
   languages?: string[];
+  avatarUrl?: string;
 }
 
 export async function updateMe(input: UpdateProfileInput): Promise<{ user: User }> {

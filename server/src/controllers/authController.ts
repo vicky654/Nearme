@@ -15,8 +15,8 @@ import {
 import { sendVerificationEmail, sendPasswordResetEmail } from '../services/emailService';
 import { isGoogleLoginEnabled, verifyGoogleIdToken } from '../services/googleAuthService';
 import { REFRESH_COOKIE_NAME, setRefreshCookie, clearRefreshCookie } from '../utils/cookies';
+import { getFunkyAvatarUrl } from '../utils/avatarUtils';
 
-const DEFAULT_AVATAR_URL = 'https://api.dicebear.com/9.x/initials/svg';
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
 const ROTATION_GRACE_MS = 15_000;
 
@@ -39,7 +39,7 @@ export const register: RequestHandler = asyncHandler(async (req, res) => {
     displayName,
     email,
     passwordHash,
-    avatarUrl: `${DEFAULT_AVATAR_URL}?seed=${encodeURIComponent(username)}`,
+    avatarUrl: getFunkyAvatarUrl(username),
   });
 
   const verifyToken = signPurposeToken(user.id, 'email-verify');
@@ -246,9 +246,6 @@ export const googleLogin: RequestHandler = asyncHandler(async (req, res) => {
     user = await User.findOne({ email: profile.email });
     if (user) {
       user.googleId = profile.googleId;
-      // Google has already verified ownership of this email address, so linking
-      // an existing password account to a Google identity should also mark the
-      // email verified (preserving an existing verification timestamp if present).
       user.emailVerifiedAt = user.emailVerifiedAt ?? new Date();
     } else {
       const usernameBase = profile.email.split('@')[0]!.replace(/[^a-zA-Z0-9_]/g, '');
@@ -261,7 +258,7 @@ export const googleLogin: RequestHandler = asyncHandler(async (req, res) => {
         displayName: profile.name,
         email: profile.email,
         passwordHash: null,
-        avatarUrl: profile.picture ?? `https://api.dicebear.com/9.x/initials/svg?seed=${encodeURIComponent(username)}`,
+        avatarUrl: profile.picture ?? getFunkyAvatarUrl(username),
         googleId: profile.googleId,
         emailVerifiedAt: new Date(),
       });
@@ -277,9 +274,6 @@ export const googleLogin: RequestHandler = asyncHandler(async (req, res) => {
     userAgent: req.headers['user-agent'] ?? '',
     ipAddress: req.ip ?? '',
     expiresAt: new Date(Date.now() + SEVEN_DAYS_MS),
-    // Google logins are always persistent (see setRefreshCookie call below) — the
-    // session record must agree, or a subsequent /auth/refresh silently downgrades
-    // this to a session-only cookie because it reads rememberMe off the session.
     rememberMe: true,
   });
   setRefreshCookie(res, rawRefreshToken, true);

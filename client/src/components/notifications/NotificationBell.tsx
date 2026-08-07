@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../../store/notificationStore';
+import { Avatar } from '../ui/Avatar';
 
 export function NotificationBell() {
   const [isOpen, setIsOpen] = useState(false);
@@ -102,10 +103,12 @@ export function NotificationBell() {
                       : 'bg-indigo-50/50 dark:bg-indigo-950/30 hover:bg-indigo-50'
                   }`}
                 >
-                  <img
-                    src={notif.senderId?.avatarUrl || 'https://via.placeholder.com/40'}
-                    alt={notif.senderId?.displayName || 'User'}
-                    className="h-9 w-9 rounded-full object-cover flex-shrink-0"
+                  <Avatar
+                    src={notif.senderId?.avatarUrl}
+                    alt={notif.senderId?.displayName || 'Notification'}
+                    seed={notif.senderId?.username || notif.senderId?.displayName || notif._id}
+                    size="sm"
+                    shape="squircle"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">

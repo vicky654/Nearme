@@ -24,6 +24,7 @@ import { getUserId } from '../types/user';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Avatar } from '../components/ui/Avatar';
 import { toast } from '../store/toastStore';
 import { useSessionState } from '../hooks/useSessionState';
 
@@ -318,7 +319,10 @@ function DiscoveryMap({ users, radius, showingAllUsers, isLocating, onLocate }: 
               className="absolute z-[5] -translate-x-1/2 -translate-y-1/2 rounded-2xl border-2 border-white bg-white p-0.5 shadow-lg shadow-indigo-900/15 dark:border-gray-900 dark:bg-gray-900"
               style={{ left: `${position.left}%`, top: `${position.top}%` }}
             >
-              <span className="relative block h-11 w-11 overflow-hidden rounded-[.8rem] bg-gradient-to-br from-brand-300 to-violet-400 sm:h-12 sm:w-12"><img src={item.user.avatarUrl} alt="" className="h-full w-full object-cover" /><span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${item.user.lastSeenAt ? 'bg-emerald-400' : 'bg-gray-300'}`} /></span>
+              <span className="relative block h-11 w-11 overflow-hidden rounded-[.8rem] bg-gradient-to-br from-brand-300 to-violet-400 sm:h-12 sm:w-12">
+                <Avatar src={item.user.avatarUrl} alt={item.user.displayName} seed={item.user.username || item.user.displayName} size="custom" shape="squircle" className="h-full w-full" imgClassName="rounded-[.8rem]" />
+                <span className={`absolute bottom-0.5 right-0.5 h-2.5 w-2.5 rounded-full border-2 border-white ${item.user.lastSeenAt ? 'bg-emerald-400' : 'bg-gray-300'}`} />
+              </span>
             </motion.button>
           );
         })}
@@ -356,9 +360,8 @@ function PersonCard({ item, compact, index, onConnect, onChat, onReport }: { ite
   return (
     <motion.article layout initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * .025, .18) }} whileHover={{ y: -4 }} className={`app-card group overflow-hidden ${compact ? 'flex items-center p-3' : ''}`}>
       <div className={`relative overflow-hidden ${compact ? 'h-20 w-20 shrink-0 rounded-2xl' : 'h-48'}`}>
-        <div className="absolute inset-0 bg-gradient-to-br from-brand-300 via-violet-400 to-fuchsia-400" />
-        <img loading="lazy" decoding="async" src={item.user.avatarUrl} alt={item.user.displayName} className="relative h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/65 via-transparent to-transparent" />
+        <Avatar src={item.user.avatarUrl} alt={item.user.displayName} seed={item.user.username || item.user.displayName} size="custom" shape="squircle" className="h-full w-full" imgClassName={`h-full w-full object-cover transition duration-500 group-hover:scale-105 ${compact ? 'rounded-2xl' : 'rounded-none'}`} />
+        <div className="absolute inset-0 bg-gradient-to-t from-gray-950/65 via-transparent to-transparent pointer-events-none" />
         {!compact && <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1.5 text-[10px] font-extrabold text-gray-800 shadow-sm"><IonIcon icon={location} className="text-brand-600" /> {distanceLabel}</span>}
         <span className={`absolute right-3 top-3 h-3 w-3 rounded-full border-2 border-white shadow-sm ${online ? 'bg-emerald-400' : 'bg-gray-300'}`} />
       </div>

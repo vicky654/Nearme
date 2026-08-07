@@ -8,6 +8,7 @@ import { getUserId } from '../../types/user';
 import { MessageList } from './MessageList';
 import { MessageInput } from './MessageInput';
 import { Button } from '../ui/Button';
+import { Avatar } from '../ui/Avatar';
 import { toast } from '../../store/toastStore';
 
 interface ChatWindowProps {
@@ -115,16 +116,15 @@ export function ChatWindow({
           )}
 
           <motion.div whileHover={{ scale: 1.03 }} className="relative shrink-0">
-            <img src={recipient.avatarUrl} alt="" className="h-11 w-11 rounded-[1.05rem] object-cover shadow-sm" />
-            {isOnline && (
-              <motion.span
-                initial={{ scale: 0 }}
-                animate={{ scale: [1, 1.15, 1] }}
-                transition={{ repeat: Infinity, duration: 2.4 }}
-                className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-[2.5px] border-white bg-emerald-500 dark:border-gray-900"
-                aria-label="Online"
-              />
-            )}
+            <Avatar
+              src={recipient.avatarUrl}
+              alt={recipient.displayName}
+              seed={recipient.username || recipient.displayName}
+              size="md"
+              shape="squircle"
+              showOnlineStatus={isOnline}
+              isOnline={isOnline}
+            />
           </motion.div>
 
           <div className="min-w-0">

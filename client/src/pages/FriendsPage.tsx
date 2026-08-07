@@ -6,6 +6,7 @@ import { getUserId } from '../types/user';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Avatar } from '../components/ui/Avatar';
 import { toast } from '../store/toastStore';
 import { useSessionState } from '../hooks/useSessionState';
 
@@ -103,7 +104,7 @@ export default function FriendsPage() {
               : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400'
           }`}
         >
-          Pending Requests ({requestsQuery.data?.incoming.length ?? 0})
+          Pending Requests ({(requestsQuery.data?.incoming.length ?? 0) + (requestsQuery.data?.outgoing.length ?? 0)})
         </button>
         <button
           onClick={() => setActiveTab('blocked')}
@@ -136,16 +137,15 @@ export default function FriendsPage() {
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
-                      <div className="relative">
-                        <img
-                          loading="lazy"
-                          decoding="async"
-                          src={user.avatarUrl}
-                          alt={user.displayName}
-                          className="h-12 w-12 rounded-full object-cover shadow-sm"
-                        />
-                        <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
-                      </div>
+                      <Avatar
+                        src={user.avatarUrl}
+                        alt={user.displayName}
+                        seed={user.username || user.displayName}
+                        size="md"
+                        shape="squircle"
+                        showOnlineStatus
+                        isOnline
+                      />
                       <div>
                         <h4 className="font-bold text-gray-900 dark:text-gray-100">
                           {user.displayName}
@@ -204,12 +204,12 @@ export default function FriendsPage() {
                     className="app-card flex items-center justify-between p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <img
-                        loading="lazy"
-                        decoding="async"
+                      <Avatar
                         src={item.user.avatarUrl}
                         alt={item.user.displayName}
-                        className="h-10 w-10 rounded-full object-cover"
+                        seed={item.user.username || item.user.displayName}
+                        size="md"
+                        shape="squircle"
                       />
                       <div>
                         <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -256,12 +256,12 @@ export default function FriendsPage() {
                     className="app-card flex items-center justify-between p-4"
                   >
                     <div className="flex items-center gap-3">
-                      <img
-                        loading="lazy"
-                        decoding="async"
+                      <Avatar
                         src={item.user.avatarUrl}
                         alt={item.user.displayName}
-                        className="h-10 w-10 rounded-full object-cover"
+                        seed={item.user.username || item.user.displayName}
+                        size="md"
+                        shape="squircle"
                       />
                       <div>
                         <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
@@ -299,12 +299,12 @@ export default function FriendsPage() {
                   className="app-card flex items-center justify-between p-4"
                 >
                   <div className="flex items-center gap-3">
-                    <img
-                      loading="lazy"
-                      decoding="async"
+                    <Avatar
                       src={u.avatarUrl}
                       alt={u.displayName}
-                      className="h-10 w-10 rounded-full object-cover"
+                      seed={u.username || u.displayName}
+                      size="md"
+                      shape="squircle"
                     />
                     <div>
                       <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">

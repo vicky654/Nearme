@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useNotificationStore } from '../../store/notificationStore';
 import { acceptFriendRequest } from '../../api/friendApi';
 import { Button } from '../ui/Button';
+import { Avatar } from '../ui/Avatar';
 import { toast } from '../../store/toastStore';
 
 export function ActionToast() {
@@ -56,10 +57,12 @@ export function ActionToast() {
     <div className="fixed bottom-5 right-5 z-50 flex max-w-sm w-full flex-col gap-3 rounded-2xl border border-indigo-100 bg-white p-4 shadow-2xl transition-all animate-in slide-in-from-bottom-5 dark:border-indigo-900/50 dark:bg-gray-900">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <img
-            src={notification.senderId?.avatarUrl || 'https://via.placeholder.com/40'}
-            alt={notification.senderId?.displayName || 'User'}
-            className="h-11 w-11 rounded-full object-cover shadow-sm"
+          <Avatar
+            src={notification.senderId?.avatarUrl}
+            alt={notification.senderId?.displayName || 'Notification'}
+            seed={notification.senderId?.username || notification.senderId?.displayName || notification._id}
+            size="md"
+            shape="squircle"
           />
           <div>
             <h4 className="text-xs font-bold text-gray-900 dark:text-gray-100">

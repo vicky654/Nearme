@@ -1,4 +1,5 @@
 import { IUser, IPrivacySettings } from '../models/User';
+import { getValidAvatarUrl } from './avatarUtils';
 
 export interface PublicUser {
   id: string;
@@ -27,7 +28,7 @@ export function toPublicUser(user: IUser): PublicUser {
     username: user.username,
     displayName: user.displayName,
     email: user.email,
-    avatarUrl: user.avatarUrl,
+    avatarUrl: getValidAvatarUrl(user.avatarUrl, user.username || user.displayName || user._id.toString()),
     bio: user.bio,
     gender: user.gender,
     age: user.age,

@@ -15,6 +15,7 @@ import { CommandPalette } from '../navigation/CommandPalette';
 import { useAuthStore } from '../../store/authStore';
 import { useNotificationStore } from '../../store/notificationStore';
 import { NetworkBanner } from '../ui/NetworkBanner';
+import { Avatar } from '../ui/Avatar';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useNativeAppLifecycle } from '../../hooks/useNativeAppLifecycle';
 import { hapticNotification } from '../../utils/hapticService';
@@ -138,7 +139,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
           <motion.aside className="fixed inset-y-0 left-0 z-50 w-[86%] max-w-[340px] overflow-y-auto rounded-r-[2rem] bg-white pb-[max(1.5rem,var(--sab))] pt-[max(1rem,var(--sat))] shadow-2xl dark:bg-gray-900 md:hidden" initial={{ x: '-105%' }} animate={{ x: 0 }} exit={{ x: '-105%' }} transition={{ type: 'spring', stiffness: 360, damping: 34 }}>
             <div className="flex items-center justify-between px-5"><span className="text-lg font-black tracking-tight">near<span className="text-brand-600">me</span></span><button aria-label="Close menu" onClick={closeDrawer} className="grid h-10 w-10 place-items-center rounded-full bg-gray-100 dark:bg-gray-800"><IonIcon icon={close} /></button></div>
             <div className="mx-4 mt-5 overflow-hidden rounded-[1.6rem] bg-gradient-to-br from-brand-600 to-violet-600 p-5 text-white shadow-xl shadow-brand-600/20">
-              <div className="flex items-center gap-3"><img src={user?.avatarUrl} alt="" className="h-14 w-14 rounded-2xl border-2 border-white/40 object-cover" /><div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-bold">{user?.displayName}</p><span className="rounded-full bg-amber-300 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-950">Plus</span></div><p className="truncate text-xs text-white/70">@{user?.username}</p></div></div>
+              <div className="flex items-center gap-3"><Avatar src={user?.avatarUrl} alt={user?.displayName} seed={user?.username || user?.displayName} size="lg" shape="squircle" border /><div className="min-w-0"><div className="flex items-center gap-2"><p className="truncate font-bold">{user?.displayName}</p><span className="rounded-full bg-amber-300 px-1.5 py-0.5 text-[8px] font-black uppercase text-amber-950">Plus</span></div><p className="truncate text-xs text-white/70">@{user?.username}</p></div></div>
               <div className="mt-5 flex gap-2"><div className="rounded-xl bg-white/12 px-3 py-2 text-xs"><strong className="block text-base">12</strong>Connections</div><div className="rounded-xl bg-white/12 px-3 py-2 text-xs"><strong className="block text-base">240</strong>Coins</div></div>
             </div>
             <div className="mt-4 px-3">{drawerItems.map(([path, label, icon]) => <button key={label} onClick={() => path.startsWith('/') ? navigate(path) : undefined} className="flex min-h-12 w-full items-center gap-3 rounded-2xl px-3 text-left text-sm font-semibold text-gray-700 hover:bg-gray-100 dark:text-gray-200 dark:hover:bg-gray-800"><span className="grid h-9 w-9 place-items-center rounded-xl bg-gray-100 text-brand-600 dark:bg-gray-800"><IonIcon icon={icon} /></span><span className="flex-1">{label}</span><IonIcon icon={chevronForward} className="text-gray-300" /></button>)}</div>

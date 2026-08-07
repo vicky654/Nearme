@@ -4,6 +4,7 @@ import { useNotificationStore } from '../store/notificationStore';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Avatar } from '../components/ui/Avatar';
 import { AppNotification } from '../api/notificationApi';
 import { IonInfiniteScroll, IonInfiniteScrollContent } from '@ionic/react';
 import { useSessionState } from '../hooks/useSessionState';
@@ -84,12 +85,12 @@ export default function NotificationsPage() {
               }`}
             >
               <div className="flex items-start gap-3 min-w-0">
-                <img
-                  loading="lazy"
-                  decoding="async"
-                  src={n.senderId?.avatarUrl || 'https://via.placeholder.com/40'}
-                  alt={n.senderId?.displayName || 'User'}
-                  className="h-11 w-11 rounded-full object-cover flex-shrink-0"
+                <Avatar
+                  src={n.senderId?.avatarUrl}
+                  alt={n.senderId?.displayName || 'Notification'}
+                  seed={n.senderId?.username || n.senderId?.displayName || n._id}
+                  size="md"
+                  shape="squircle"
                 />
                 <div className="flex flex-col min-w-0">
                   <div className="flex items-center gap-2">

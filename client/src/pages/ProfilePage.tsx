@@ -6,10 +6,12 @@ import { Input } from '../components/ui/Input';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Avatar } from '../components/ui/Avatar';
 import { toast } from '../store/toastStore';
 import { useAuthStore } from '../store/authStore';
 import { getMe, updateMe } from '../api/userApi';
 import { profileFormSchema, ProfileFormValues } from '../validators/userSchemas';
+import { FUNKY_AVATAR_PRESETS, getFunkyAvatarUrl } from '../utils/avatarUtils';
 import type { User } from '../types/user';
 
 function toFormValues(user: User): ProfileFormValues {
@@ -27,6 +29,7 @@ function toFormValues(user: User): ProfileFormValues {
 
 export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
+  const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const setAuth = useAuthStore((state) => state.setAuth);
   const accessToken = useAuthStore((state) => state.accessToken);
@@ -52,6 +55,7 @@ export default function ProfilePage() {
         age: values.age ? Number(values.age) : undefined,
         country: values.country || undefined,
         city: values.city || undefined,
+        avatarUrl: selectedAvatarUrl || undefined,
         interests: values.interests
           ? values.interests.split(',').map((s) => s.trim()).filter(Boolean)
           : [],
@@ -66,6 +70,7 @@ export default function ProfilePage() {
       queryClient.setQueryData(['me'], { user });
       reset(toFormValues(user));
       setIsEditing(false);
+      setSelectedAvatarUrl(null);
       toast.success('Profile updated successfully!');
     },
     onError: () => toast.error('Unable to update profile. Please try again.'),
@@ -90,6 +95,18 @@ export default function ProfilePage() {
   }
 
   const user = query.data.user;
+  const currentAvatarUrl = selectedAvatarUrl ?? user.avatarUrl;
+
+  function handleOpenEdit() {
+    setSelectedAvatarUrl(user.avatarUrl);
+    setIsEditing(true);
+  }
+
+  function handleRandomizeAvatar() {
+    const randomSeed = `${user.username}_${Math.floor(Math.random() * 100000)}`;
+    setSelectedAvatarUrl(getFunkyAvatarUrl(randomSeed));
+    toast.success('Generated a new funky avatar illustration!');
+  }
 
   function handleShareProfile() {
     if (navigator.share) {
@@ -106,19 +123,29 @@ export default function ProfilePage() {
       <div className="app-card relative overflow-hidden rounded-[2rem]">
         {/* Cover Photo */}
         <div className="relative h-48 w-full bg-[#252c59] sm:h-56">
-          <div className="absolute -right-16 -top-28 h-80 w-80 rounded-full bg-brand-500/60 blur-3xl" /><div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-fuchsia-500/25 blur-3xl" />
+          <div className="absolute -right-16 -top-28 h-80 w-80 rounded-full bg-brand-500/60 blur-3xl" />
+          <div className="absolute -bottom-24 left-10 h-64 w-64 rounded-full bg-fuchsia-500/25 blur-3xl" />
         </div>
 
         {/* Profile Info Row */}
         <div className="relative px-6 pb-6 pt-0">
           <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 -mt-16 sm:-mt-14 mb-4">
             <div className="relative inline-block">
-              {user.avatarUrl ? <img src={user.avatarUrl} alt={user.displayName} className="h-28 w-28 rounded-[2rem] border-4 border-white object-cover shadow-xl dark:border-gray-900 sm:h-32 sm:w-32" /> : <div role="img" aria-label={user.displayName} className="grid h-28 w-28 place-items-center rounded-[2rem] border-4 border-white bg-gradient-to-br from-brand-500 to-violet-600 text-4xl font-black text-white shadow-xl dark:border-gray-900 sm:h-32 sm:w-32">{user.displayName.charAt(0).toUpperCase()}</div>}
-              <span className="absolute bottom-1 right-1 h-4 w-4 rounded-full border-2 border-white bg-green-500 dark:border-gray-900" />
+              <Avatar
+                src={user.avatarUrl}
+                alt={user.displayName}
+                seed={user.username || user.displayName || user.id}
+                size="2xl"
+                shape="squircle"
+                border
+                shadow
+                showOnlineStatus
+                isOnline
+              />
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button size="sm" onClick={() => setIsEditing(true)}>
+              <Button size="sm" onClick={handleOpenEdit}>
                 ✏️ Edit Profile
               </Button>
               <Button size="sm" variant="secondary" onClick={handleShareProfile}>
@@ -225,7 +252,7 @@ export default function ProfilePage() {
 
       {/* Edit Profile Modal */}
       {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in">
           <div className="w-full max-w-lg rounded-[2rem] bg-white p-6 shadow-2xl dark:bg-gray-900">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-800">
               <h2 className="text-lg font-bold text-gray-900 dark:text-gray-100">Edit Profile</h2>
@@ -243,6 +270,65 @@ export default function ProfilePage() {
               noValidate
               onSubmit={handleSubmit((values) => mutation.mutate(values))}
             >
+              {/* Funky Avatar Illustration Style Selector */}
+              <div className="rounded-2xl border border-indigo-100 bg-indigo-50/50 p-4 dark:border-gray-800 dark:bg-gray-800/40">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-gray-900 dark:text-gray-100">
+                    🎨 Funky Profile Avatar Illustration
+                  </label>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleRandomizeAvatar}
+                    className="!py-1 !text-[11px]"
+                  >
+                    🎲 Shuffle
+                  </Button>
+                </div>
+                <div className="mt-3 flex items-center gap-4">
+                  <Avatar
+                    src={currentAvatarUrl}
+                    alt="Preview"
+                    seed={user.username}
+                    size="xl"
+                    shape="squircle"
+                    border
+                    shadow
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold text-gray-800 dark:text-gray-200">
+                      Pick an avatar illustration style:
+                    </p>
+                    <div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
+                      {FUNKY_AVATAR_PRESETS.map((preset) => {
+                        const presetUrl = getFunkyAvatarUrl(user.username || 'explorer', preset.id);
+                        const isSelected = currentAvatarUrl === presetUrl;
+                        return (
+                          <button
+                            key={preset.id}
+                            type="button"
+                            onClick={() => setSelectedAvatarUrl(presetUrl)}
+                            className={`flex flex-col items-center gap-1 rounded-xl p-2 text-[10px] font-bold transition-all border ${
+                              isSelected
+                                ? 'border-brand-600 bg-brand-50 text-brand-700 shadow-sm dark:bg-brand-950 dark:text-brand-300'
+                                : 'border-gray-200 bg-white hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-300'
+                            }`}
+                          >
+                            <img
+                              src={presetUrl}
+                              alt={preset.label}
+                              className="h-8 w-8 rounded-lg object-cover"
+                            />
+                            <span className="truncate max-w-full">{preset.label}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <Input label="Display name" error={errors.displayName?.message} {...register('displayName')} />
               <Input label="Bio" error={errors.bio?.message} {...register('bio')} />
               <div className="flex flex-col gap-1">
@@ -282,3 +368,4 @@ export default function ProfilePage() {
     </div>
   );
 }
+

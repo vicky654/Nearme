@@ -1,10 +1,26 @@
 import User from '../models/User';
 import { hashPassword } from './passwordService';
 import { env } from '../config/env';
+import { getFunkyAvatarUrl, isLetterOrLegacyAvatar } from '../utils/avatarUtils';
 
 export async function seedAdminUser(): Promise<void> {
-  if (!env.SEED_ADMIN) return;
   try {
+    // Migration check: Upgrade any legacy letter initials avatars stored in DB to unique funky illustration avatars
+    const usersWithLegacyAvatars = await User.find({
+      $or: [
+        { avatarUrl: { $regex: /initials/i } },
+        { avatarUrl: '' },
+        { avatarUrl: null },
+      ],
+    });
+
+    for (const user of usersWithLegacyAvatars) {
+      user.avatarUrl = getFunkyAvatarUrl(user.username || user.displayName || user._id.toString());
+      await user.save();
+    }
+
+    if (!env.SEED_ADMIN) return;
+
     const adminEmail = env.ADMIN_EMAIL || 'admin@nearme.com';
     const adminUsername = env.ADMIN_USERNAME || 'admin';
     const adminPassword = env.ADMIN_PASSWORD || 'Admin@12345';
@@ -30,7 +46,8 @@ export async function seedAdminUser(): Promise<void> {
       console.log(`Successfully seeded administrator account for ${adminEmail}`);
     }
   } catch (err) {
-    console.error('Failed to seed admin user:', err);
+    console.error('Failed to seed admin user or migrate avatars:', err);
     throw err;
   }
 }
+
