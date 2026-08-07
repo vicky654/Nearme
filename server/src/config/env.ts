@@ -13,7 +13,7 @@ export const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(16, 'JWT_ACCESS_SECRET must be at least 16 characters'),
   JWT_REFRESH_SECRET: z.string().min(16, 'JWT_REFRESH_SECRET must be at least 16 characters'),
   JWT_PURPOSE_SECRET: z.string().min(16, 'JWT_PURPOSE_SECRET must be at least 16 characters'),
-  RESEND_API_KEY: z.string().min(1, 'RESEND_API_KEY is required'),
+  RESEND_API_KEY: z.string().optional(),
   EMAIL_FROM: z.string().min(1, 'EMAIL_FROM is required'),
   CLIENT_URL: z.string().url(),
   GOOGLE_CLIENT_ID: z.string().optional(),
@@ -44,9 +44,6 @@ export const envSchema = z.object({
     if (values[field].startsWith('replace-with')) {
       context.addIssue({ code: z.ZodIssueCode.custom, path: [field], message: `${field} must use a production secret` });
     }
-  }
-  if (values.RESEND_API_KEY.startsWith('dummy') || values.RESEND_API_KEY.startsWith('replace-with')) {
-    context.addIssue({ code: z.ZodIssueCode.custom, path: ['RESEND_API_KEY'], message: 'A real email provider key is required in production' });
   }
 });
 

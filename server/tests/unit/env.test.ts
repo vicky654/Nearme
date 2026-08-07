@@ -5,7 +5,6 @@ const REQUIRED_VARS = [
   'JWT_ACCESS_SECRET',
   'JWT_REFRESH_SECRET',
   'JWT_PURPOSE_SECRET',
-  'RESEND_API_KEY',
   'EMAIL_FROM',
   'CLIENT_URL',
 ];
@@ -74,5 +73,34 @@ describe('env config', () => {
 
     expect(() => envSchema.parse({ ...productionEnv, SHOW_ALL_USERS: 'true' })).toThrow();
     expect(() => envSchema.parse({ ...productionEnv, SEED_ADMIN: 'true' })).toThrow();
+  });
+
+  it('loads successfully when RESEND_API_KEY is missing entirely', () => {
+    const validEnv = {
+      NODE_ENV: 'test',
+      MONGODB_URI: 'mongodb://localhost:27017/nearme-test',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      JWT_PURPOSE_SECRET: 'c'.repeat(32),
+      EMAIL_FROM: 'NearMe <no-reply@test.dev>',
+      CLIENT_URL: 'http://localhost:5173',
+    };
+
+    expect(() => envSchema.parse(validEnv)).not.toThrow();
+  });
+
+  it('does not reject a dummy RESEND_API_KEY placeholder in production', () => {
+    const productionEnv = {
+      NODE_ENV: 'production',
+      MONGODB_URI: 'mongodb://localhost:27017/nearme-test',
+      JWT_ACCESS_SECRET: 'a'.repeat(32),
+      JWT_REFRESH_SECRET: 'b'.repeat(32),
+      JWT_PURPOSE_SECRET: 'c'.repeat(32),
+      RESEND_API_KEY: 'dummy',
+      EMAIL_FROM: 'NearMe <no-reply@test.dev>',
+      CLIENT_URL: 'https://nearme.example.com',
+    };
+
+    expect(() => envSchema.parse(productionEnv)).not.toThrow();
   });
 });
