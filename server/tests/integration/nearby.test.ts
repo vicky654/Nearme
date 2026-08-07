@@ -74,6 +74,17 @@ describe('Nearby & Geolocation API', () => {
     expect(Date.now() - (updated!.locationUpdatedAt as Date).getTime()).toBeLessThan(5_000);
   });
 
+  it('accepts accuracy: 0 as a physically valid GPS reading', async () => {
+    const res = await request(app)
+      .patch('/api/v1/users/location')
+      .set('Authorization', `Bearer ${tokenA}`)
+      .send({ latitude: 37.775, longitude: -122.418, accuracy: 0 });
+
+    expect(res.status).toBe(200);
+    const updated = await User.findById(userA._id);
+    expect(updated?.locationAccuracy).toBe(0);
+  });
+
   it('returns nearby users within requested radius', async () => {
     const res = await request(app)
       .get('/api/v1/users/nearby?radius=5')
