@@ -8,6 +8,10 @@
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
         <string>NearMe</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>NearMe uses your location to show you people nearby and how far away they are.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>NearMe uses your location to show you people nearby and how far away they are.</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>

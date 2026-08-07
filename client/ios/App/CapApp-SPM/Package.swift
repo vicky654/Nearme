@@ -17,6 +17,7 @@ let package = Package(
         .package(name: "CapacitorClipboard", path: "..\..\..\..\node_modules\@capacitor\clipboard"),
         .package(name: "CapacitorDevice", path: "..\..\..\..\node_modules\@capacitor\device"),
         .package(name: "CapacitorFilesystem", path: "..\..\..\..\node_modules\@capacitor\filesystem"),
+        .package(name: "CapacitorGeolocation", path: "..\..\..\..\node_modules\@capacitor\geolocation"),
         .package(name: "CapacitorHaptics", path: "..\..\..\..\node_modules\@capacitor\haptics"),
         .package(name: "CapacitorKeyboard", path: "..\..\..\..\node_modules\@capacitor\keyboard"),
         .package(name: "CapacitorLocalNotifications", path: "..\..\..\..\node_modules\@capacitor\local-notifications"),
@@ -24,7 +25,8 @@ let package = Package(
         .package(name: "CapacitorPushNotifications", path: "..\..\..\..\node_modules\@capacitor\push-notifications"),
         .package(name: "CapacitorShare", path: "..\..\..\..\node_modules\@capacitor\share"),
         .package(name: "CapacitorSplashScreen", path: "..\..\..\..\node_modules\@capacitor\splash-screen"),
-        .package(name: "CapacitorStatusBar", path: "..\..\..\..\node_modules\@capacitor\status-bar")
+        .package(name: "CapacitorStatusBar", path: "..\..\..\..\node_modules\@capacitor\status-bar"),
+        .package(name: "CapacitorNativeSettings", path: "..\..\..\..\node_modules\capacitor-native-settings")
     ],
     targets: [
         .target(
@@ -37,6 +39,7 @@ let package = Package(
                 .product(name: "CapacitorClipboard", package: "CapacitorClipboard"),
                 .product(name: "CapacitorDevice", package: "CapacitorDevice"),
                 .product(name: "CapacitorFilesystem", package: "CapacitorFilesystem"),
+                .product(name: "CapacitorGeolocation", package: "CapacitorGeolocation"),
                 .product(name: "CapacitorHaptics", package: "CapacitorHaptics"),
                 .product(name: "CapacitorKeyboard", package: "CapacitorKeyboard"),
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
@@ -44,7 +47,8 @@ let package = Package(
                 .product(name: "CapacitorPushNotifications", package: "CapacitorPushNotifications"),
                 .product(name: "CapacitorShare", package: "CapacitorShare"),
                 .product(name: "CapacitorSplashScreen", package: "CapacitorSplashScreen"),
-                .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar")
+                .product(name: "CapacitorStatusBar", package: "CapacitorStatusBar"),
+                .product(name: "CapacitorNativeSettings", package: "CapacitorNativeSettings")
             ]
         )
     ]
