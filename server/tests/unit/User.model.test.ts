@@ -78,4 +78,19 @@ describe('User model', () => {
   it('requires username, displayName, email, and avatarUrl', async () => {
     await expect(User.create({})).rejects.toThrow();
   });
+
+  it('persists locationUpdatedAt and locationAccuracy when set', async () => {
+    const user = await User.create({
+      username: 'dave',
+      displayName: 'Dave',
+      email: 'dave@example.com',
+      passwordHash: 'hashed',
+      avatarUrl: 'https://example.com/default-avatar.png',
+      locationUpdatedAt: new Date('2026-08-07T00:00:00.000Z'),
+      locationAccuracy: 12.5,
+    });
+
+    expect(user.locationUpdatedAt).toEqual(new Date('2026-08-07T00:00:00.000Z'));
+    expect(user.locationAccuracy).toBe(12.5);
+  });
 });
