@@ -41,6 +41,8 @@ export interface IUser extends Document {
   createdAt: Date;
   passwordChangedAt: Date | null;
   pushTokens: string[];
+  locationUpdatedAt?: Date;
+  locationAccuracy?: number;
 }
 
 const privacySchema = new Schema<IPrivacySettings>(
@@ -81,6 +83,8 @@ const userSchema = new Schema<IUser>({
   createdAt: { type: Date, default: () => new Date() },
   passwordChangedAt: { type: Date, default: null },
   pushTokens: { type: [String], default: [], select: false },
+  locationUpdatedAt: { type: Date },
+  locationAccuracy: { type: Number },
 });
 
 userSchema.index({ location: '2dsphere' });

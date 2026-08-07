@@ -18,6 +18,8 @@ import { NetworkBanner } from '../ui/NetworkBanner';
 import { Avatar } from '../ui/Avatar';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useNativeAppLifecycle } from '../../hooks/useNativeAppLifecycle';
+import { useLocationTracking } from '../../hooks/useLocationTracking';
+import { useLocationPermission } from '../../hooks/useLocationPermission';
 import { hapticNotification } from '../../utils/hapticService';
 import { NotificationType as HapticNotificationType } from '@capacitor/haptics';
 import { toast } from '../../store/toastStore';
@@ -50,6 +52,11 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const closeSearch = useCallback(() => setIsSearchOpen(false), []);
   useNativeAppLifecycle(drawerOpen, closeDrawer);
+  // Probe/refresh permission status at the app root so tracking can start
+  // (and the store stays current) regardless of which screen is active —
+  // NearbyPage/LocationPermissionCard also call this cheap, store-backed hook.
+  useLocationPermission();
+  useLocationTracking();
 
   useEffect(() => {
     if (!user || import.meta.env.MODE === 'test') return;

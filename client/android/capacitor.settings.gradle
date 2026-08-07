@@ -17,6 +17,9 @@ project(':capacitor-device').projectDir = new File('../../node_modules/@capacito
 include ':capacitor-filesystem'
 project(':capacitor-filesystem').projectDir = new File('../../node_modules/@capacitor/filesystem/android')
 
+include ':capacitor-geolocation'
+project(':capacitor-geolocation').projectDir = new File('../../node_modules/@capacitor/geolocation/android')
+
 include ':capacitor-haptics'
 project(':capacitor-haptics').projectDir = new File('../../node_modules/@capacitor/haptics/android')
 
@@ -40,3 +43,6 @@ project(':capacitor-splash-screen').projectDir = new File('../../node_modules/@c
 
 include ':capacitor-status-bar'
 project(':capacitor-status-bar').projectDir = new File('../../node_modules/@capacitor/status-bar/android')
+
+include ':capacitor-native-settings'
+project(':capacitor-native-settings').projectDir = new File('../../node_modules/capacitor-native-settings/android')

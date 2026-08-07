@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import AppLayout from './AppLayout';
 import { useAuthStore } from '../../store/authStore';
+import { useLocationStore } from '../../store/locationStore';
 import type { User } from '../../types/user';
 
 vi.mock('../../api/authApi', () => ({
@@ -83,5 +84,14 @@ describe('AppLayout', () => {
     useAuthStore.getState().setAuth(unverifiedUser, 'token');
     renderLayout();
     expect(screen.getByText('Please verify your email address.')).toBeInTheDocument();
+  });
+
+  it('probes location permission at the app root, so tracking can work without ever visiting Nearby', async () => {
+    // C1: only NearbyPage/LocationPermissionCard used to call useLocationPermission();
+    // AppLayout must also call it so `permissionStatus` in the shared store
+    // reflects reality (and useLocationTracking can start) app-wide.
+    useLocationStore.setState({ permissionStatus: 'unknown', gpsState: 'idle', lastKnownPosition: null, lastSentAt: null });
+    renderLayout();
+    await waitFor(() => expect(useLocationStore.getState().permissionStatus).not.toBe('unknown'));
   });
 });

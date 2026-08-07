@@ -45,8 +45,8 @@ export interface FriendRequestsResponse {
   blocked: User[];
 }
 
-export async function updateLocation(latitude: number, longitude: number): Promise<void> {
-  await apiClient.patch('/users/location', { latitude, longitude });
+export async function updateLocation(latitude: number, longitude: number, accuracy?: number): Promise<void> {
+  await apiClient.patch('/users/location', { latitude, longitude, accuracy });
 }
 
 export async function getNearbyUsers(radius = 20, signal?: AbortSignal): Promise<{ users: NearbyUserItem[]; meta?: NearbyMeta }> {

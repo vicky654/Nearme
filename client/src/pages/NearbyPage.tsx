@@ -27,6 +27,9 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { Avatar } from '../components/ui/Avatar';
 import { toast } from '../store/toastStore';
 import { useSessionState } from '../hooks/useSessionState';
+import { LocationPermissionCard } from '../components/nearby/LocationPermissionCard';
+import { useLocationPermission } from '../hooks/useLocationPermission';
+import { useLocationStore } from '../store/locationStore';
 
 const RADII = [1, 5, 10, 20];
 const FALLBACK_ANGLE = Math.PI * (3 - Math.sqrt(5));
@@ -43,6 +46,9 @@ export default function NearbyPage() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const nearbyQuery = useQuery({ queryKey: ['nearby', radius], queryFn: ({ signal }) => getNearbyUsers(radius, signal) });
+  const { status: locationStatus } = useLocationPermission();
+  const gpsState = useLocationStore((state) => state.gpsState);
+  const lastSentAt = useLocationStore((state) => state.lastSentAt);
 
   const locationMutation = useMutation({
     mutationFn: ({ lat, lng }: { lat: number; lng: number }) => updateLocation(lat, lng),
@@ -150,115 +156,128 @@ export default function NearbyPage() {
         </div>
       </motion.section>
 
-      <DiscoveryMap
-        users={users}
-        radius={radius}
-        showingAllUsers={Boolean(meta?.showingAllUsers)}
-        isLocating={locationMutation.isPending}
-        onLocate={updateDeviceLocation}
-      />
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
-          <span className="shrink-0 text-xs font-bold uppercase tracking-[.12em] text-gray-400">Radius</span>
-          {RADII.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setRadius(value)}
-              className={`min-h-10 shrink-0 rounded-2xl px-4 text-xs font-bold transition ${
-                radius === value
-                  ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
-                  : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:text-brand-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300'
-              }`}
-            >
-              {value} km
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-pressed={onlineOnly}
-            onClick={() => setOnlineOnly((value) => !value)}
-            className={`min-h-10 shrink-0 rounded-2xl px-4 text-xs font-bold transition ${
-              onlineOnly
-                ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
-                : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-300 hover:text-emerald-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300'
-            }`}
-          >
-            Online now
-          </button>
-        </div>
-        <div className="flex items-center gap-1 self-end rounded-2xl border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900 sm:self-auto">
-          <button
-            type="button"
-            aria-label="Grid view"
-            onClick={() => setView('grid')}
-            className={`grid h-9 w-9 place-items-center rounded-xl transition ${view === 'grid' ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-100'}`}
-          >
-            <IonIcon icon={grid} />
-          </button>
-          <button
-            type="button"
-            aria-label="List view"
-            onClick={() => setView('list')}
-            className={`grid h-9 w-9 place-items-center rounded-xl transition ${view === 'list' ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-100'}`}
-          >
-            <IonIcon icon={list} />
-          </button>
-        </div>
-      </div>
-
-      {nearbyQuery.isPending && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3, 4, 5, 6].map((item) => <Skeleton key={item} className="h-72 rounded-[1.6rem]" />)}
-        </div>
-      )}
-      {nearbyQuery.isError && (
-        <EmptyState
-          title="Couldn’t load nearby people"
-          description="Check your connection and try discovery again."
-          action={<Button onClick={() => nearbyQuery.refetch()}>Try again</Button>}
-        />
-      )}
-      {!nearbyQuery.isPending && !nearbyQuery.isError && users.length === 0 && (
-        <EmptyState
-          title={onlineOnly ? 'No one is online right now' : 'No one here just yet'}
-          description={onlineOnly ? 'Turn off Online now to browse every profile.' : 'Try a wider radius or refresh your location.'}
-          action={<Button onClick={() => (onlineOnly ? setOnlineOnly(false) : setRadius(20))}>{onlineOnly ? 'Show everyone' : 'Search 20 km'}</Button>}
-        />
-      )}
-      {users.length > 0 && (
+      {locationStatus !== 'granted' ? (
+        <LocationPermissionCard />
+      ) : (
         <>
-          <div className="flex items-end justify-between gap-3">
-            <div>
-              <p className="eyebrow">Community pulse</p>
-              <h2 className="mt-1 text-xl font-extrabold tracking-tight">{onlineOnly ? 'People online now' : 'Everyone near you'}</h2>
+          {gpsState !== 'idle' && (
+            <div className="flex items-center gap-2 text-xs font-semibold text-gray-400">
+              <span className={`h-2 w-2 rounded-full ${gpsState === 'active' ? 'bg-emerald-400' : gpsState === 'searching' ? 'bg-amber-400' : 'bg-gray-300'}`} />
+              {gpsState === 'active' ? 'GPS active' : gpsState === 'searching' ? 'Finding your location…' : 'GPS signal lost'}
+              {lastSentAt && <span>· Updated {formatRelativeLocationTime(lastSentAt)}</span>}
             </div>
-            <span className="shrink-0 text-xs font-semibold text-gray-400">{users.length} shown</span>
+          )}
+          <DiscoveryMap
+            users={users}
+            radius={radius}
+            showingAllUsers={Boolean(meta?.showingAllUsers)}
+            isLocating={locationMutation.isPending}
+            onLocate={updateDeviceLocation}
+          />
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="scrollbar-none flex min-w-0 items-center gap-2 overflow-x-auto pb-1">
+              <span className="shrink-0 text-xs font-bold uppercase tracking-[.12em] text-gray-400">Radius</span>
+              {RADII.map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setRadius(value)}
+                  className={`min-h-10 shrink-0 rounded-2xl px-4 text-xs font-bold transition ${
+                    radius === value
+                      ? 'bg-brand-600 text-white shadow-md shadow-brand-500/25'
+                      : 'border border-gray-200 bg-white text-gray-600 hover:border-brand-300 hover:text-brand-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300'
+                  }`}
+                >
+                  {value} km
+                </button>
+              ))}
+              <button
+                type="button"
+                aria-pressed={onlineOnly}
+                onClick={() => setOnlineOnly((value) => !value)}
+                className={`min-h-10 shrink-0 rounded-2xl px-4 text-xs font-bold transition ${
+                  onlineOnly
+                    ? 'bg-emerald-500 text-white shadow-md shadow-emerald-500/20'
+                    : 'border border-gray-200 bg-white text-gray-600 hover:border-emerald-300 hover:text-emerald-600 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-300'
+                }`}
+              >
+                Online now
+              </button>
+            </div>
+            <div className="flex items-center gap-1 self-end rounded-2xl border border-gray-200 bg-white p-1 dark:border-gray-800 dark:bg-gray-900 sm:self-auto">
+              <button
+                type="button"
+                aria-label="Grid view"
+                onClick={() => setView('grid')}
+                className={`grid h-9 w-9 place-items-center rounded-xl transition ${view === 'grid' ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-100'}`}
+              >
+                <IonIcon icon={grid} />
+              </button>
+              <button
+                type="button"
+                aria-label="List view"
+                onClick={() => setView('list')}
+                className={`grid h-9 w-9 place-items-center rounded-xl transition ${view === 'list' ? 'bg-gray-900 text-white shadow-sm dark:bg-white dark:text-gray-900' : 'text-gray-400 hover:text-gray-700 dark:hover:text-gray-100'}`}
+              >
+                <IonIcon icon={list} />
+              </button>
+            </div>
           </div>
-          <motion.div layout className={view === 'grid' ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'space-y-3'}>
-            {visibleUsers.map((item, index) => (
-              <PersonCard
-                key={getUserId(item.user)}
-                item={item}
-                compact={view === 'list'}
-                index={index}
-                onConnect={() => connectMutation.mutate(getUserId(item.user))}
-                onChat={() => chatMutation.mutate(getUserId(item.user))}
-                onReport={() => setReportModalUser(item)}
-              />
-            ))}
-          </motion.div>
-          <IonInfiniteScroll
-            threshold="180px"
-            disabled={!hasMore}
-            onIonInfinite={(event) => {
-              setVisibleCount((count) => Math.min(count + 24, users.length));
-              event.target.complete();
-            }}
-          >
-            <IonInfiniteScrollContent loadingSpinner="crescent" loadingText="Finding more people…" />
-          </IonInfiniteScroll>
+
+          {nearbyQuery.isPending && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {[1, 2, 3, 4, 5, 6].map((item) => <Skeleton key={item} className="h-72 rounded-[1.6rem]" />)}
+            </div>
+          )}
+          {nearbyQuery.isError && (
+            <EmptyState
+              title="Couldn’t load nearby people"
+              description="Check your connection and try discovery again."
+              action={<Button onClick={() => nearbyQuery.refetch()}>Try again</Button>}
+            />
+          )}
+          {!nearbyQuery.isPending && !nearbyQuery.isError && users.length === 0 && (
+            <EmptyState
+              title={onlineOnly ? 'No one is online right now' : 'No one here just yet'}
+              description={onlineOnly ? 'Turn off Online now to browse every profile.' : 'Try a wider radius or refresh your location.'}
+              action={<Button onClick={() => (onlineOnly ? setOnlineOnly(false) : setRadius(20))}>{onlineOnly ? 'Show everyone' : 'Search 20 km'}</Button>}
+            />
+          )}
+          {users.length > 0 && (
+            <>
+              <div className="flex items-end justify-between gap-3">
+                <div>
+                  <p className="eyebrow">Community pulse</p>
+                  <h2 className="mt-1 text-xl font-extrabold tracking-tight">{onlineOnly ? 'People online now' : 'Everyone near you'}</h2>
+                </div>
+                <span className="shrink-0 text-xs font-semibold text-gray-400">{users.length} shown</span>
+              </div>
+              <motion.div layout className={view === 'grid' ? 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3' : 'space-y-3'}>
+                {visibleUsers.map((item, index) => (
+                  <PersonCard
+                    key={getUserId(item.user)}
+                    item={item}
+                    compact={view === 'list'}
+                    index={index}
+                    onConnect={() => connectMutation.mutate(getUserId(item.user))}
+                    onChat={() => chatMutation.mutate(getUserId(item.user))}
+                    onReport={() => setReportModalUser(item)}
+                  />
+                ))}
+              </motion.div>
+              <IonInfiniteScroll
+                threshold="180px"
+                disabled={!hasMore}
+                onIonInfinite={(event) => {
+                  setVisibleCount((count) => Math.min(count + 24, users.length));
+                  event.target.complete();
+                }}
+              >
+                <IonInfiniteScrollContent loadingSpinner="crescent" loadingText="Finding more people…" />
+              </IonInfiniteScroll>
+            </>
+          )}
         </>
       )}
 
@@ -351,6 +370,14 @@ function markerPosition(item: NearbyUserItem, index: number, users: NearbyUserIt
   const angle = index * FALLBACK_ANGLE;
   const radius = 24 + (index % 4) * 5;
   return { left: 48 + Math.cos(angle) * radius, top: 48 + Math.sin(angle) * radius * .72 };
+}
+
+function formatRelativeLocationTime(at: number): string {
+  const seconds = Math.max(0, Math.floor((Date.now() - at) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ago`;
 }
 
 function PersonCard({ item, compact, index, onConnect, onChat, onReport }: { item: NearbyUserItem; compact: boolean; index: number; onConnect: () => void; onChat: () => void; onReport: () => void }) {
