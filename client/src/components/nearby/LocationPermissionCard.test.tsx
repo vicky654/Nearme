@@ -29,6 +29,12 @@ describe('LocationPermissionCard', () => {
     expect(screen.queryByTestId('location-permission-card')).not.toBeInTheDocument();
   });
 
+  it('does not claim exact location is never shared with other users', () => {
+    mockPermission.mockReturnValue({ status: 'prompt', request, openSettings, isNative: false });
+    render(<LocationPermissionCard />);
+    expect(screen.queryByText(/never share your exact location/i)).not.toBeInTheDocument();
+  });
+
   it('shows an Allow Location button when status is prompt', () => {
     mockPermission.mockReturnValue({ status: 'prompt', request, openSettings, isNative: false });
     render(<LocationPermissionCard />);

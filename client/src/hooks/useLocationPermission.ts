@@ -63,6 +63,19 @@ async function requestStatus(): Promise<LocationPermissionStatus> {
   }
 }
 
+/**
+ * Re-runs the underlying permission check and writes the result to the shared
+ * store. Exported so other hooks (e.g. `useLocationTracking`) can re-probe
+ * permission status outside of `useLocationPermission`'s own mount effect —
+ * on a watch error, or when the app returns to the foreground — without
+ * duplicating the check/mapping logic above.
+ */
+export async function refreshLocationPermissionStatus(): Promise<LocationPermissionStatus> {
+  const next = await checkStatus();
+  useLocationStore.getState().setPermissionStatus(next);
+  return next;
+}
+
 export function useLocationPermission() {
   const status = useLocationStore((state) => state.permissionStatus);
   const setStatus = useLocationStore((state) => state.setPermissionStatus);

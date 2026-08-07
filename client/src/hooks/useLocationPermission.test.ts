@@ -22,7 +22,7 @@ vi.mock('capacitor-native-settings', () => ({
   IOSSettings: { App: 'app' },
 }));
 
-import { useLocationPermission } from './useLocationPermission';
+import { useLocationPermission, refreshLocationPermissionStatus } from './useLocationPermission';
 import { useLocationStore } from '../store/locationStore';
 
 describe('useLocationPermission', () => {
@@ -113,6 +113,16 @@ describe('useLocationPermission', () => {
     });
 
     expect(openSettings).toHaveBeenCalledWith({ optionAndroid: 'application_details', optionIOS: 'app' });
+  });
+
+  it('refreshLocationPermissionStatus re-checks status and writes it to the shared store without a hook instance', async () => {
+    isNativePlatform.mockReturnValue(false);
+    checkPermissions.mockResolvedValue({ location: 'denied', coarseLocation: 'denied' });
+
+    const next = await refreshLocationPermissionStatus();
+
+    expect(next).toBe('blocked');
+    expect(useLocationStore.getState().permissionStatus).toBe('blocked');
   });
 
   it('openSettings is a no-op on web', async () => {

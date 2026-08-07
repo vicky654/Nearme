@@ -31,7 +31,7 @@ export function LocationPermissionCard() {
       </span>
       <h2 className="mt-4 text-lg font-extrabold">See who's nearby</h2>
       <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-        NearMe uses your location to show people near you and how far away they are. We never share your exact location with other users.
+        NearMe uses your location to show people near you and how far away they are.
       </p>
       <span className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-gray-100 px-3 py-1 text-xs font-bold text-gray-600 dark:bg-gray-800 dark:text-gray-300">
         Status: {STATUS_LABEL[status]}

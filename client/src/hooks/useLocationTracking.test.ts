@@ -6,11 +6,25 @@ vi.mock('@capacitor/core', () => ({ Capacitor: { isNativePlatform: (...args: unk
 
 const watchPosition = vi.fn();
 const clearWatch = vi.fn().mockResolvedValue(undefined);
+const checkPermissions = vi.fn();
 vi.mock('@capacitor/geolocation', () => ({
   Geolocation: {
     watchPosition: (...args: unknown[]) => watchPosition(...args),
     clearWatch: (...args: unknown[]) => clearWatch(...args),
+    // Pulled in transitively via `refreshLocationPermissionStatus`
+    // (useLocationPermission.ts) for the watch-error / foreground re-probe.
+    checkPermissions: (...args: unknown[]) => checkPermissions(...args),
+    requestPermissions: vi.fn(),
+    getCurrentPosition: vi.fn(),
   },
+}));
+
+// useLocationPermission.ts imports this for openSettings(); unused by these
+// tests but must be mocked so the module graph resolves under jsdom.
+vi.mock('capacitor-native-settings', () => ({
+  NativeSettings: { open: vi.fn() },
+  AndroidSettings: { ApplicationDetails: 'application_details' },
+  IOSSettings: { App: 'app' },
 }));
 
 const addListener = vi.fn();
@@ -25,6 +39,7 @@ vi.mock('../api/friendApi', () => ({ updateLocation: (...args: unknown[]) => upd
 import { useLocationTracking } from './useLocationTracking';
 import { useLocationStore } from '../store/locationStore';
 import { cachePendingLocation, readPendingLocation } from '../utils/locationOfflineCache';
+import { MIN_INTERVAL_MS } from '../utils/locationGate';
 
 describe('useLocationTracking', () => {
   beforeEach(() => {
@@ -36,6 +51,10 @@ describe('useLocationTracking', () => {
     addListener.mockReset();
     updateLocationMock.mockReset().mockResolvedValue(undefined);
     useNetworkStatusMock.mockReturnValue(true);
+    // Default: permission stays granted across any re-probe triggered by the
+    // foreground handlers / watch-error handler, so existing watch lifecycle
+    // tests aren't affected unless a test explicitly overrides this.
+    checkPermissions.mockReset().mockResolvedValue({ location: 'granted', coarseLocation: 'granted' });
   });
 
   afterEach(() => {
@@ -78,16 +97,64 @@ describe('useLocationTracking', () => {
     expect(readPendingLocation()).toEqual({ lat: 10, lng: 20, accuracy: 8, at: 2_000 });
   });
 
-  it('flushes a previously cached fix once online, without starting the watch', async () => {
-    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at: 3_000 });
-    useLocationStore.setState({ permissionStatus: 'prompt' });
+  it('flushes a previously cached fix once online while permission remains granted', async () => {
+    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at: Date.now() });
+    useLocationStore.setState({ permissionStatus: 'granted' });
     useNetworkStatusMock.mockReturnValue(true);
 
     renderHook(() => useLocationTracking());
 
     await waitFor(() => expect(updateLocationMock).toHaveBeenCalledWith(5, 6, 3));
     expect(readPendingLocation()).toBeNull();
-    expect(watchPosition).not.toHaveBeenCalled();
+  });
+
+  it('does not flush (and discards) a cached fix when permission is not granted', async () => {
+    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at: Date.now() });
+    useLocationStore.setState({ permissionStatus: 'denied' });
+    useNetworkStatusMock.mockReturnValue(true);
+
+    renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(readPendingLocation()).toBeNull());
+    expect(updateLocationMock).not.toHaveBeenCalled();
+  });
+
+  it('discards a cached fix older than the max cache age instead of sending it as "now"', async () => {
+    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at: Date.now() - 6 * 60 * 1000 });
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    useNetworkStatusMock.mockReturnValue(true);
+
+    renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(readPendingLocation()).toBeNull());
+    expect(updateLocationMock).not.toHaveBeenCalled();
+  });
+
+  it('discards the cached fix on flush when the server rejects it with an HTTP response (not a network failure)', async () => {
+    const at = Date.now();
+    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at });
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    useNetworkStatusMock.mockReturnValue(true);
+    updateLocationMock.mockRejectedValue({ response: { status: 429 } });
+
+    renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(updateLocationMock).toHaveBeenCalledWith(5, 6, 3));
+    await waitFor(() => expect(readPendingLocation()).toBeNull());
+  });
+
+  it('keeps the cached fix for a later retry when the flush fails with a plain network error', async () => {
+    const at = Date.now();
+    cachePendingLocation({ lat: 5, lng: 6, accuracy: 3, at });
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    useNetworkStatusMock.mockReturnValue(true);
+    updateLocationMock.mockRejectedValue(new Error('network down'));
+
+    renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(updateLocationMock).toHaveBeenCalledWith(5, 6, 3));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(readPendingLocation()).toEqual({ lat: 5, lng: 6, accuracy: 3, at });
   });
 
   it('does not start a second watch if startWatch is invoked while one is already active', async () => {
@@ -161,5 +228,92 @@ describe('useLocationTracking', () => {
     watchPosition.mockResolvedValue('watch-2');
     appStateCallback!({ isActive: true });
     await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(2));
+  });
+
+  it('treats any watch error as cause to re-check permission and marks gpsState as lost', async () => {
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    // On web, a "denied" Permissions API result maps straight to 'blocked'
+    // (see useLocationPermission.ts's checkStatus) — same mapping used here.
+    checkPermissions.mockResolvedValue({ location: 'denied', coarseLocation: 'denied' });
+    watchPosition.mockImplementation((_options, callback) => {
+      callback(undefined, { message: 'Location permission was denied' });
+      return Promise.resolve('watch-1');
+    });
+
+    renderHook(() => useLocationTracking());
+
+    await waitFor(() => expect(useLocationStore.getState().gpsState).toBe('lost'));
+    await waitFor(() => expect(checkPermissions).toHaveBeenCalled());
+    await waitFor(() => expect(useLocationStore.getState().permissionStatus).toBe('blocked'));
+  });
+
+  it('re-checks permission when the app returns to the foreground (web visibilitychange)', async () => {
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    renderHook(() => useLocationTracking());
+    await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1));
+    checkPermissions.mockClear();
+
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    await waitFor(() => expect(clearWatch).toHaveBeenCalled());
+    expect(checkPermissions).not.toHaveBeenCalled();
+
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+    document.dispatchEvent(new Event('visibilitychange'));
+
+    await waitFor(() => expect(checkPermissions).toHaveBeenCalled());
+  });
+
+  it('re-checks permission on the native appStateChange foreground transition', async () => {
+    isNativePlatform.mockReturnValue(true);
+    const remove = vi.fn().mockResolvedValue(undefined);
+    let appStateCallback: ((state: { isActive: boolean }) => void) | undefined;
+    addListener.mockImplementation((event: string, callback: (state: { isActive: boolean }) => void) => {
+      if (event === 'appStateChange') appStateCallback = callback;
+      return Promise.resolve({ remove });
+    });
+    useLocationStore.setState({ permissionStatus: 'granted' });
+
+    renderHook(() => useLocationTracking());
+    await waitFor(() => expect(watchPosition).toHaveBeenCalledTimes(1));
+    checkPermissions.mockClear();
+
+    appStateCallback!({ isActive: false });
+    await waitFor(() => expect(clearWatch).toHaveBeenCalled());
+    expect(checkPermissions).not.toHaveBeenCalled();
+
+    appStateCallback!({ isActive: true });
+    await waitFor(() => expect(checkPermissions).toHaveBeenCalled());
+  });
+
+  it('downgrades gpsState to lost when no fix arrives within 2x the send interval, and back to active on the next fix', async () => {
+    useLocationStore.setState({ permissionStatus: 'granted' });
+    let watchCallback: ((position: unknown, err: unknown) => void) | undefined;
+    watchPosition.mockImplementation((_options, callback) => {
+      watchCallback = callback;
+      return Promise.resolve('watch-1');
+    });
+
+    // Install fake timers before mounting so the hook's own staleness-check
+    // `setInterval` is itself created against the fake clock — a `setInterval`
+    // created under real timers keeps ticking on the real event loop and
+    // would never fire when only the fake clock is advanced.
+    vi.useFakeTimers();
+    try {
+      renderHook(() => useLocationTracking());
+      await vi.advanceTimersByTimeAsync(0);
+      expect(watchPosition).toHaveBeenCalledTimes(1);
+
+      watchCallback!({ coords: { latitude: 1, longitude: 2, accuracy: 5 }, timestamp: Date.now() }, undefined);
+      expect(useLocationStore.getState().gpsState).toBe('active');
+
+      await vi.advanceTimersByTimeAsync(2 * MIN_INTERVAL_MS + 5_000);
+      expect(useLocationStore.getState().gpsState).toBe('lost');
+
+      watchCallback!({ coords: { latitude: 1, longitude: 2, accuracy: 5 }, timestamp: Date.now() }, undefined);
+      expect(useLocationStore.getState().gpsState).toBe('active');
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
