@@ -18,6 +18,7 @@ import { NetworkBanner } from '../ui/NetworkBanner';
 import { Avatar } from '../ui/Avatar';
 import { useNetworkStatus } from '../../hooks/useNetworkStatus';
 import { useNativeAppLifecycle } from '../../hooks/useNativeAppLifecycle';
+import { useLocationTracking } from '../../hooks/useLocationTracking';
 import { hapticNotification } from '../../utils/hapticService';
 import { NotificationType as HapticNotificationType } from '@capacitor/haptics';
 import { toast } from '../../store/toastStore';
@@ -50,6 +51,7 @@ export default function AppLayout({ children }: { children: ReactNode }) {
   const closeDrawer = useCallback(() => setDrawerOpen(false), []);
   const closeSearch = useCallback(() => setIsSearchOpen(false), []);
   useNativeAppLifecycle(drawerOpen, closeDrawer);
+  useLocationTracking();
 
   useEffect(() => {
     if (!user || import.meta.env.MODE === 'test') return;
