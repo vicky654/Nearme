@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate';
 import { validate } from '../middleware/validate';
-import { updateProfileSchema, changePasswordSchema, updateSettingsSchema } from '../validators/userValidators';
+import { locationRateLimiter } from '../middleware/rateLimiters';
+import { updateProfileSchema, changePasswordSchema, updateSettingsSchema, updateLocationSchema } from '../validators/userValidators';
 import { getMe, updateMe, changePassword, getSettings, updateSettings, registerPushToken, unregisterPushToken, updateLocation, getNearbyUsers, searchUsers } from '../controllers/userController';
 
 const router = Router();
@@ -16,7 +17,7 @@ router.patch('/me/settings', validate(updateSettingsSchema), updateSettings);
 router.put('/me/push-token', registerPushToken);
 router.delete('/me/push-token', unregisterPushToken);
 
-router.patch('/location', updateLocation);
+router.patch('/location', locationRateLimiter, validate(updateLocationSchema), updateLocation);
 router.get('/nearby', getNearbyUsers);
 router.get('/search', searchUsers);
 

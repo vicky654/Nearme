@@ -110,16 +110,14 @@ export const unregisterPushToken: RequestHandler = asyncHandler(async (req, res)
 
 export const updateLocation: RequestHandler = asyncHandler(async (req, res) => {
   const user = await requireUser(req.userId);
-  const { latitude, longitude } = req.body as { latitude: number; longitude: number };
-
-  if (typeof latitude !== 'number' || typeof longitude !== 'number') {
-    throw new AppError(400, 'Valid latitude and longitude numbers are required');
-  }
+  const { latitude, longitude, accuracy } = req.body as { latitude: number; longitude: number; accuracy?: number };
 
   user.location = {
     type: 'Point',
     coordinates: [longitude, latitude],
   };
+  user.locationUpdatedAt = new Date();
+  if (accuracy !== undefined) user.locationAccuracy = accuracy;
   await user.save();
 
   res.status(200).json({ message: 'Location updated', location: user.location });
